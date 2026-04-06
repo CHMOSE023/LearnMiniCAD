@@ -29,10 +29,10 @@ foreach(MODULE_DIR ${MODULE_DIRS})
     add_executable(${MODULE_DIR}   ${SOURCE_FILES})
 
     # 3.4 每个模块独立 include 目录（关键点）
-    target_include_directories(${MODULE_DIR}  PRIVATE ${LEARN_DIR}/)
+    target_include_directories(${MODULE_DIR}  PRIVATE ${MODULE_PATH}/)
 
     # 3.5 连接静态库
-    target_link_libraries(${MODULE_DIR}   PRIVATE  Microsoft::DirectXTK d3d11 dxgi) 
+    target_link_libraries(${MODULE_DIR}   PRIVATE  Microsoft::DirectXTK d3d11 dxgi d3dcompiler) 
 
     # 3.5 输出目录
     set_target_properties(${MODULE_DIR}
@@ -41,8 +41,7 @@ foreach(MODULE_DIR ${MODULE_DIRS})
     )
 
     # 3.6 资产文件，主要是着色器程序
-    file(GLOB_RECURSE ASSETS  ${MODULE_PATH}/*.hlsl)
-
+    file(GLOB_RECURSE ASSETS  ${MODULE_PATH}/*.hlsl) 
     # 3.7 拷贝资源
     if(ASSETS)
         add_custom_command(TARGET ${MODULE_DIR} POST_BUILD
