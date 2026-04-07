@@ -5,51 +5,42 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(MSVC)
-    add_definitions("-DUNICODE" "-D_UNICODE")  # Windows API 使用宽字符版本
-    add_compile_options(/utf-8)                # 源文件按 UTF-8 解析
+    add_definitions("-DUNICODE" "-D_UNICODE")                                   # Windows API 使用宽字符版本
+    add_compile_options(/utf-8)                                                 # 源文件按 UTF-8 解析
 endif()
 
 find_package(directxtk CONFIG REQUIRED)
 
-# 1.源码根目录
-set(LEARN_DIR "${CMAKE_SOURCE_DIR}/source")
+set(LESSON_ROOT "${CMAKE_SOURCE_DIR}/source")                                   # 1.源码根目录
+                                                                                
+file(GLOB LESSON_NAMES RELATIVE ${LESSON_ROOT} ${LESSON_ROOT}/*)                # 2.获取每课程的目录名（即子文件夹名），GLOB仅包括子目录
+                                                                                
+foreach(LESSON_NAME ${LESSON_NAMES})                                            # 3.遍历 LESSON_NAMES 为每个课程生成独立的可执行文件
 
-# 2.获取Source下的所有文件夹放在MODULE_DIRS变量中， GLOB当前目录，不含子目录
-file(GLOB MODULE_DIRS RELATIVE ${LEARN_DIR} ${LEARN_DIR}/*)
+    set(LESSON_DIR "${LESSON_ROOT}/${LESSON_NAME}")                             # 3.1 当前课程的完整路径   
+    
+    file(GLOB_RECURSE LESSON_SOURCES CONFIGURE_DEPENDS "${LESSON_DIR}/*.cpp")   # 3.2 收集课程下所有 .cpp 源文件（含子目录），GLOB_RECURSE 递归子目录   
 
-# 3.遍历 MODULE_DIRS 为每个文件夹生成 exe 文件
-foreach(MODULE_DIR ${MODULE_DIRS})  
-    # 3.1 当前模块路径
-    set(MODULE_PATH ${LEARN_DIR}/${MODULE_DIR})
+    add_executable(${LESSON_NAME} ${LESSON_SOURCES})                            # 3.3 以课程名创建可执行目标
+   
+    target_include_directories(${LESSON_NAME} PRIVATE "${LESSON_DIR}/")         # 3.4 课程私有头文件目录
 
-    # 3.2 收集所有*cpp；GLOB_RECURSE 包含子目录 
-    file(GLOB_RECURSE SOURCE_FILES  CONFIGURE_DEPENDS  ${MODULE_PATH}/*.cpp  )
-
-    # 3.3 创建可执行程序
-    add_executable(${MODULE_DIR}   ${SOURCE_FILES})
-
-    # 3.4 每个模块独立 include 目录（关键点）
-    target_include_directories(${MODULE_DIR}  PRIVATE ${MODULE_PATH}/)
-
-    # 3.5 连接静态库
-    target_link_libraries(${MODULE_DIR}   PRIVATE  Microsoft::DirectXTK d3d11 dxgi d3dcompiler) 
-
-    # 3.5 输出目录
-    set_target_properties(${MODULE_DIR}
-        PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/${MODULE_DIR}
+    target_link_libraries(${LESSON_NAME} PRIVATE                                # 3.5 链接所需库
+        Microsoft::DirectXTK d3d11 dxgi d3dcompiler
     )
 
-    # 3.6 资产文件，主要是着色器程序
-    file(GLOB_RECURSE ASSETS  ${MODULE_PATH}/*.hlsl) 
-    # 3.7 拷贝资源
-    if(ASSETS)
-        add_custom_command(TARGET ${MODULE_DIR} POST_BUILD
+    set_target_properties(${LESSON_NAME} PROPERTIES                             # 3.6 可执行文件输出目录
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${LESSON_NAME}"
+    )
+
+    file(GLOB_RECURSE HLSL_SHADERS "${LESSON_DIR}/*.hlsl")                      # 3.7 收集课程下的 HLSL 着色器文件
+ 
+    if(HLSL_SHADERS)                                                            # 3.8 构建后将着色器拷贝到输出目录
+        add_custom_command(TARGET ${LESSON_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${ASSETS}
-                $<TARGET_FILE_DIR:${MODULE_DIR}>
-            COMMENT "Copy assets for ${MODULE_DIR}"
+                ${HLSL_SHADERS}
+                $<TARGET_FILE_DIR:${LESSON_NAME}>
+            COMMENT "Copying HLSL shaders for ${LESSON_NAME}"
         )
     endif()
-
 endforeach()
