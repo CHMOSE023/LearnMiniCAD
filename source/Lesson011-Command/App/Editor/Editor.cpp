@@ -19,7 +19,7 @@ namespace MiniCAD
     { 
         // 1️ 全局按键优先处理
         if (e.Type == InputEventType::KeyDown )
-        {
+        { 
             OnKeyDown(e);
             return true;
         }
@@ -32,11 +32,11 @@ namespace MiniCAD
             case InputEventType::MouseButtonDown: m_tool->OnMouseDown(e); return true;
             case InputEventType::MouseButtonUp:   m_tool->OnMouseUp(e);   return true;
             case InputEventType::MouseMove:       m_tool->OnMouseMove(e); OnMouseMove(e); return true; 
-            case InputEventType::KeyDown:         
+        case InputEventType::KeyDown:
                 m_tool->OnKeyDown(e);
                 if (e.KeyCode == VK_ESCAPE)
-                    OnKeyDown(e); 
-                return true;
+            OnKeyDown(e);
+            return true;
             case InputEventType::MouseWheel:      OnMouseWheel(e); return true;
             default: return false;
             } 
@@ -52,7 +52,7 @@ namespace MiniCAD
         case InputEventType::KeyDown:         OnMouseMove(e);       return true;
         default:
             return false;
-        }
+        } 
         return false;
     }
 
@@ -111,8 +111,8 @@ namespace MiniCAD
             m_scene->GetCamera()->Pan(e.MouseX - e.LastMouseX, e.MouseY - e.LastMouseY);
 			//m_scene->GetCamera()->Update(e.MouseX - e.LastMouseX, e.MouseY - e.LastMouseY, 0.f, true);
 
-        }  
-      
+        }
+		
     }
 
 	// 鼠标滚轮：缩放

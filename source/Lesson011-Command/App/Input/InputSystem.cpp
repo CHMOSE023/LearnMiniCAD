@@ -19,7 +19,10 @@ namespace MiniCAD
     bool InputSystem::Dispatch(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         
-        InputEvent e = BuildEvent(hwnd, msg, wParam, lParam); 
+        InputEvent e = BuildEvent(hwnd, msg, wParam, lParam);
+
+        // printf("InputSystem::Dispatch:type=%d, button=%d, modifiers=%02x, mouse=(%d,%d), wheel=%.2f, keyCode=%u ,LastMousePos: (%d, %d) \n",
+        //      static_cast<int>(e.Type), static_cast<int>(e.Button), e.Modifiers, e.MouseX, e.MouseY, e.WheelDelta, e.KeyCode, m_lastMousePos.x, m_lastMousePos.y);
           
         if (e.Type == InputEventType::None)
             return false;

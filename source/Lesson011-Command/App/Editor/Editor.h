@@ -27,7 +27,7 @@ namespace MiniCAD
     private: 
         Scene*        m_scene    = nullptr;      
         CommandStack* m_cmdStack = nullptr; 
-        Viewport*     m_view     = nullptr;    
+        Viewport*     m_view     = nullptr;           
 
         std::unique_ptr<ITool>   m_tool;
     };
