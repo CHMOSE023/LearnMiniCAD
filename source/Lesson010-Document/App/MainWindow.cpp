@@ -14,9 +14,16 @@ namespace MiniCAD
 
 	bool MainWindow::Initialize(const wchar_t* title, int width, int height)
 	{
-		bool result = InitWindow(title, width, height) && InitD3D11(width, height) && InitViewportAndDocument(width, height); 
+		if (!InitWindow(title, width, height))
+			return false;
 
-		return result;
+		RECT rc;
+		GetClientRect(m_hwnd, &rc);
+
+		int clientW = rc.right  - rc.left;
+		int clientH = rc.bottom - rc.top;
+
+		return InitD3D11(clientW, clientH) && InitViewportAndDocument(clientW, clientH);
 	}
 
 	void MainWindow::Run()
@@ -79,6 +86,9 @@ namespace MiniCAD
 		{
 			UINT w = LOWORD(lParam), h = HIWORD(lParam);
 			if (m_swapChain) m_swapChain->Resize(w, h); 
+
+			if (m_document)m_document->GetEditor().OnResize(w, h);
+				
 			return 0;
 		}
 		// ───────────── 输入消息交给 InputSystem ─────────────
@@ -170,8 +180,7 @@ namespace MiniCAD
 		SwapChain::Options opt;
 		opt.enableVSync = false;  // 禁止垂直同步，允许撕裂（仅限窗口模式）
 		opt.allowTearing = false; // 允许撕裂（仅限窗口模式）
-
-
+		 
 		m_swapChain->Initialize(m_device.get(), m_hwnd, width, height, opt);// 初始化交换链
 		m_renderer = std::make_unique<Renderer>(m_device->GetDevice(), m_device->GetContext());
 
@@ -179,12 +188,16 @@ namespace MiniCAD
 	}
 
 	bool MainWindow::InitViewportAndDocument(int width, int height)
-	{
+	{  
 		m_viewport = std::make_unique<Viewport>(m_renderer.get(), width, height); // 传入m_renderer
 
 		m_document = std::make_unique<Document>(width, height);
 
 		m_viewport->SetCamera(m_document->GetScene().GetCamera()); // 设置相机
+
+		m_input.PushHandler(m_document.get());         // 先注册 Document，保证它优先处理输入事件
+
+		m_input.PushHandler(&m_document->GetEditor()); // 先注册 Document，保证它优先处理输入事件
 
 		// 添加一些测试数据
 		auto& scene = m_document->GetScene();

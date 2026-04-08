@@ -104,15 +104,18 @@ namespace MiniCAD
 
     void  Camera::Pan(float dx, float dy)
     {
-        float worldWidth  = m_zoom * m_aspect;
-        float worldHeight = m_zoom;
+        XMVECTOR target = XMLoadFloat3(&m_target); // 3D 向量
 
-        // 屏幕像素映射到世界坐标
-        float offsetX = -dx / m_screenWidth * worldWidth;
-        float offsetY = dy / m_screenHeight * worldHeight;
+        float viewHeight = m_zoom;
+        float viewWidth = m_zoom * m_aspect;
 
-        m_target.x += offsetX;
-        m_target.y += offsetY;
+        float worldPerPixelX = viewWidth / m_screenWidth;
+        float worldPerPixelY = viewHeight / m_screenHeight;
+
+        XMVECTOR delta = XMVectorSet(-dx * worldPerPixelX, dy * worldPerPixelY, 0.f, 0.f);
+        target = XMVectorAdd(target, delta);
+
+        XMStoreFloat3(&m_target, target);
     }
 
     void  Camera::Zoom(float delta, int mouseX, int mouseY)

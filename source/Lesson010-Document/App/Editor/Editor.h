@@ -15,14 +15,17 @@ namespace MiniCAD
     public:
         Editor(Scene* scene, CommandStack* cmdStack); 
         bool OnInput(const InputEvent& e) override;  
-
+        void OnResize(float width, float height);
     private:
         void OnMouseButtonDown(const InputEvent& e);
-        void OnKeyDown(const InputEvent& e);
-        void OnMouseMove(const InputEvent& e);  
+        void OnMouseButtonUp  (const InputEvent& e);
+        void OnKeyDown        (const InputEvent& e);
+        void OnKeyUp          (const InputEvent& e);
+        void OnMouseMove      (const InputEvent& e);   
+        void OnMouseWheel     (const InputEvent& e);
     private: 
         Scene*        m_scene    = nullptr;      
         CommandStack* m_cmdStack = nullptr; 
-        Viewport*     m_view     = nullptr; 
+        Viewport*     m_view     = nullptr;           
     };
 }
