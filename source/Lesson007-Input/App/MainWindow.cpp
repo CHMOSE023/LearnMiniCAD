@@ -65,7 +65,7 @@ namespace MiniCAD
 		else
 		{
 			pThis = reinterpret_cast<MainWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-		} 
+		}
 
 		if (pThis)
 			return pThis->EventProc(hwnd, msg, wParam, lParam);
@@ -80,7 +80,7 @@ namespace MiniCAD
 		case WM_SIZE:
 		{
 			UINT w = LOWORD(lParam), h = HIWORD(lParam);
-			if (m_swapChain) m_swapChain->Resize(w, h); 			 
+			if (m_swapChain) m_swapChain->Resize(w, h); 
 			return 0;
 		}
 		// ───────────── 输入消息交给 InputSystem ─────────────
