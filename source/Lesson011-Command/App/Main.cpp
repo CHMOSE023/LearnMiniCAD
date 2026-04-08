@@ -9,7 +9,7 @@ int main()
 
 	MainWindow mainWindow;
 
-	mainWindow.Initialize(L"Lesson010-Document",600,400);
+	mainWindow.Initialize(L"Lesson011-Command",600,400);
 	mainWindow.Run();
 
 }
