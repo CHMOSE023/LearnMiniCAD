@@ -17,6 +17,14 @@ namespace MiniCAD
 		InitWindow(title,width,height);
 
 		InitD3D11(width, height);
+ 
+		// 创建场景和编辑器
+		m_scene        = std::make_unique<Scene>();
+		m_commandStack = std::make_unique<CommandStack>();
+		m_editor       = std::make_unique<Editor>(m_scene.get(), m_commandStack.get());
+
+		// 注册输入处理器
+		m_input.PushHandler(m_editor.get()); 
 
 		return true;
 	}

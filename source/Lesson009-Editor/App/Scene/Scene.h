@@ -2,8 +2,7 @@
 #include "Render/Viewport/Grid.h"
 #include "Render/D3D11/Renderer.h"
 #include "Core/Object/Object.hpp"
-#include "Core/Entity/LineEntity.hpp"
-#include "Core/Object/Object.hpp"
+#include "Core/Entity/LineEntity.hpp" 
 #include <vector>
 #include <memory>
 #include <unordered_map>

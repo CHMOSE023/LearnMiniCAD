@@ -5,6 +5,9 @@
 #include "Render/D3D11/SwapChain.h"
 #include "Render/D3D11/Renderer.h"
 #include "Input/InputSystem.h"
+#include "Editor/Editor.h"
+#include "Scene/Scene.h"
+#include "CommandStack/CommandStack.h"
 namespace MiniCAD
 {
 	class MainWindow
@@ -37,5 +40,9 @@ namespace MiniCAD
 
 		// ── 应用层 ────────────────────────────────────────────
 		InputSystem                   m_input;
+		std::unique_ptr<Scene>        m_scene;
+		std::unique_ptr<CommandStack> m_commandStack; 
+		std::unique_ptr<Editor>       m_editor;
+		 
 	};
 }
