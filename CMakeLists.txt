@@ -20,27 +20,29 @@ foreach(LESSON_NAME ${LESSON_NAMES})                                            
     set(LESSON_DIR "${LESSON_ROOT}/${LESSON_NAME}")                             # 3.1 当前课程的完整路径   
     
     file(GLOB_RECURSE LESSON_SOURCES CONFIGURE_DEPENDS "${LESSON_DIR}/*.cpp")   # 3.2 收集课程下所有 .cpp 源文件（含子目录），GLOB_RECURSE 递归子目录   
-
-    add_executable(${LESSON_NAME} ${LESSON_SOURCES})                            # 3.3 以课程名创建可执行目标
    
-    target_include_directories(${LESSON_NAME} PRIVATE "${LESSON_DIR}/")         # 3.4 课程私有头文件目录
+    if(LESSON_SOURCES)  
+        add_executable(${LESSON_NAME} ${LESSON_SOURCES})                        # 3.3 以课程名创建可执行目标
+   
+        target_include_directories(${LESSON_NAME} PRIVATE "${LESSON_DIR}/")     # 3.4 课程私有头文件目录
 
-    target_link_libraries(${LESSON_NAME} PRIVATE                                # 3.5 链接所需库
-        Microsoft::DirectXTK d3d11 dxgi d3dcompiler
-    )
-
-    set_target_properties(${LESSON_NAME} PROPERTIES                             # 3.6 可执行文件输出目录
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${LESSON_NAME}"
-    )
-
-    file(GLOB_RECURSE HLSL_SHADERS "${LESSON_DIR}/*.hlsl")                      # 3.7 收集课程下的 HLSL 着色器文件
- 
-    if(HLSL_SHADERS)                                                            # 3.8 构建后将着色器拷贝到输出目录
-        add_custom_command(TARGET ${LESSON_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${HLSL_SHADERS}
-                $<TARGET_FILE_DIR:${LESSON_NAME}>
-            COMMENT "Copying HLSL shaders for ${LESSON_NAME}"
+        target_link_libraries(${LESSON_NAME} PRIVATE                            # 3.5 链接所需库
+            Microsoft::DirectXTK d3d11 dxgi d3dcompiler
         )
+
+        set_target_properties(${LESSON_NAME} PROPERTIES                         # 3.6 可执行文件输出目录
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${LESSON_NAME}"
+        )
+
+        file(GLOB_RECURSE HLSL_SHADERS "${LESSON_DIR}/*.hlsl")                  # 3.7 收集课程下的 HLSL 着色器文件
+ 
+        if(HLSL_SHADERS)                                                        # 3.8 构建后将着色器拷贝到输出目录
+            add_custom_command(TARGET ${LESSON_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    ${HLSL_SHADERS}
+                    $<TARGET_FILE_DIR:${LESSON_NAME}>
+                COMMENT "Copying HLSL shaders for ${LESSON_NAME}"
+            )
+        endif()
     endif()
 endforeach()
