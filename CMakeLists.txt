@@ -21,7 +21,7 @@ foreach(LESSON_NAME ${LESSON_NAMES})                                            
     
     file(GLOB_RECURSE LESSON_SOURCES CONFIGURE_DEPENDS "${LESSON_DIR}/*.cpp")   # 3.2 收集课程下所有 .cpp 源文件（含子目录），GLOB_RECURSE 递归子目录   
 
-    add_executable(${LESSON_NAME} ${LESSON_SOURCES})                            # 3.3 以课程名创建可执行目标
+    add_executable(${LESSON_NAME} ${LESSON_SOURCES} "source/Lesson005-Core/Interfaces/ISerializer.h")                            # 3.3 以课程名创建可执行目标
    
     target_include_directories(${LESSON_NAME} PRIVATE "${LESSON_DIR}/")         # 3.4 课程私有头文件目录
 
