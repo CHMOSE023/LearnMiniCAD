@@ -14,19 +14,9 @@ namespace MiniCAD
 
 	bool MainWindow::Initialize(const wchar_t* title, int width, int height)
 	{
-		InitWindow(title,width,height);
+		bool result = InitWindow(title, width, height) && InitD3D11(width, height) && InitViewportAndDocument(width, height); 
 
-		InitD3D11(width, height);
- 
-		// 创建场景和编辑器
-		m_scene        = std::make_unique<Scene>();
-		m_commandStack = std::make_unique<CommandStack>();
-		m_editor       = std::make_unique<Editor>(m_scene.get(), m_commandStack.get());
-
-		// 注册输入处理器
-		m_input.PushHandler(m_editor.get()); 
-
-		return true;
+		return result;
 	}
 
 	void MainWindow::Run()
@@ -188,28 +178,38 @@ namespace MiniCAD
 		return true;
 	}
 
+	bool MainWindow::InitViewportAndDocument(int width, int height)
+	{
+		m_viewport = std::make_unique<Viewport>(m_renderer.get(), width, height); // 传入m_renderer
+
+		m_document = std::make_unique<Document>(width, height);
+
+		m_viewport->SetCamera(m_document->GetScene().GetCamera()); // 设置相机
+
+		// 添加一些测试数据
+		auto& scene = m_document->GetScene();
+		// 直线1
+		auto id = scene.NextObjectID();
+		auto entity = std::make_unique<LineEntity>(id,XMFLOAT3(1.5, 1.5, 0), XMFLOAT3(1.5, 0, 0));
+		entity->GetAttr().Color = XMFLOAT4(1, 1, 0, 1); 
+		scene.AddEntity(std::move(entity));
+
+		// 直线2
+		id = scene.NextObjectID();
+		entity = std::make_unique<LineEntity>(id, XMFLOAT3(0.5, 0.5, 0), XMFLOAT3(1, 0, 0));
+		entity->GetAttr().Color = XMFLOAT4(1, 0, 0, 1);
+		scene.AddEntity(std::move(entity));
+
+		return true;
+	}
+
 	void MainWindow::RenderFrame()
 	{
 		auto target = m_swapChain->GetRenderTarget(); 
-
-		m_renderer->Begin(target, XMMatrixIdentity());
 		 
-		// 绘制一个三角形
-		Vertex_P3_C4 tri[6] =
-		{
-			{{ 0.0f,  0.5f, 0.0f}, {1,0,0,1}},  // 顶部 红
-			{{ 0.5f, -0.5f, 0.0f}, {0,1,0,1}},  // 右下 绿
+		m_viewport->RefreshRenderData(m_document->GetScene());
 
-			{{-0.5f, -0.5f, 0.0f}, {0,0,1,1}},  // 左下 蓝
-			{{ 0.0f,  0.5f, 0.0f}, {1,0,0,1}},  // 顶部 红
-
-		    {{ 0.5f, -0.5f, 0.0f}, {0,1,0,1}},  // 右下 绿
-			{{-0.5f, -0.5f, 0.0f}, {0,0,1,1}},  // 左下 蓝
-
-		};
-		 
-		m_renderer->DrawLine({ tri[0], tri[1], tri[2], tri[3], tri[4], tri[5] }); 
-		m_renderer->End();
+		m_viewport->Render(target);
 
 		m_swapChain->Present();
 

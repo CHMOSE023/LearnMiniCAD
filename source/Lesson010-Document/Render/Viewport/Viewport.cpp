@@ -1,19 +1,16 @@
 #include "Viewport.h"
 #include <DirectXMath.h>
-#include "Render/Extraction/RenderExtractor.h"
+#include "Extraction/SceneExtractor.h"
 using namespace DirectX;
 
 namespace MiniCAD
-{
-
+{ 
     Viewport::Viewport(Renderer* renderer,float width, float height)
         : m_renderer(renderer) 
-    {
-        m_camera = std::make_unique<Camera>(width, height);  
-        m_grid   = std::make_unique<Grid>(m_camera->GetCameraPos());
+    { 
     }
 
-    void Viewport::Render(const RenderTarget& target, const ISceneReader& scene)
+    void Viewport::Render(const RenderTarget& target)
     {
         if (!m_renderer || !m_camera) return;
          
@@ -22,10 +19,7 @@ namespace MiniCAD
         m_renderer->Begin(target, vp);
   
         //  直接用缓存数据
-        for (auto& preview : m_cachedPreviews)
-        {
-            m_renderer->DrawLine(preview.vertices);
-        }  
+        m_renderer->DrawLine(m_sceneVerteies);
          
         m_renderer->End();
     }
@@ -34,34 +28,18 @@ namespace MiniCAD
     {
 		m_camera->Resize(width, height);
     }
-     
-    Camera* Viewport::GetCamera() const
+
+    void Viewport::SetCamera(Camera* camera)
     {
-        return m_camera.get();
+		m_camera = camera;
     }
+      
 
     void Viewport::RefreshRenderData(const ISceneReader& scene)
     {
-        m_cachedItems.clear();
-        m_cachedPreviews.clear();
-        RenderExtractor::Extract(scene, m_cachedItems, m_cachedPreviews);
-    }
-      
-    void Viewport::Pan(float dx, float dy)
-    { 
-        if (m_camera)
-        {
-            m_camera->Pan(dx, dy );  // 只平移，不缩放，不滚轮
-        }
-    }
+        m_sceneVerteies.clear();
 
- 
-    void Viewport::Zoom(float delta, float mouseX, float mouseY)
-    {
-        if (m_camera)
-        { 
-            m_camera->Zoom(delta, static_cast<int>(mouseX), static_cast<int>(mouseY));  // delta = 滚轮增量，mouseX/Y = 屏幕坐标
-        }
-    }
+        SceneExtractor::Extract(scene, m_sceneVerteies);
+    } 
 
 }

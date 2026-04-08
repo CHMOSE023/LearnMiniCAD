@@ -1,5 +1,6 @@
 #pragma once
 #include "RuntimeType.hpp"
+#include <cstdint>   //  必须
 namespace MiniCAD 
 {
 	class ISerializer;

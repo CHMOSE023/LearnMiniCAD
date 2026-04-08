@@ -51,6 +51,14 @@ namespace MiniCAD
 		return ids;
 	}
 
+	void Scene::ForEachObject(std::function<void(const Object&)> fn) const
+	{
+		for (const auto& [id, obj] : m_entities)
+		{
+			fn(*obj);
+		}
+	}
+
 	void Scene::Serialize(ISerializer& s) const
 	{ 
 		// 保存图层

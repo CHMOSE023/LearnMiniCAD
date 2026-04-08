@@ -14,7 +14,7 @@ namespace MiniCAD
 
     bool Editor::OnInput(const InputEvent& e)
     { 
-        switch (e.type)
+        switch (e.Type)
         {
         case InputEventType::MouseButtonDown:
             OnMouseButtonDown(e);
@@ -35,14 +35,14 @@ namespace MiniCAD
     void Editor::OnKeyDown(const InputEvent& e)
     {  
         // Ctrl+Z：Undo
-        if (e.HasModifier(ModifierKey::Ctrl) && e.keyCode == 'Z')
+        if (e.HasModifier(ModifierKey::Ctrl) && e.KeyCode == 'Z')
         {
             m_cmdStack->Undo(*m_scene); 
             return;
         }
 
         // Ctrl+Y：Redo
-        if (e.HasModifier(ModifierKey::Ctrl) && e.keyCode == 'Y')
+        if (e.HasModifier(ModifierKey::Ctrl) && e.KeyCode == 'Y')
         {
             m_cmdStack->Redo(*m_scene); 
             return;

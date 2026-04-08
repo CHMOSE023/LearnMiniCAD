@@ -26,21 +26,21 @@ namespace MiniCAD
 
     struct InputEvent
     {
-        InputEventType type      = InputEventType::None;
-        MouseButton    button    = MouseButton::None;
-        uint8_t        modifiers = 0;                    // ModifierKey 位掩码
+        InputEventType Type      = InputEventType::None;
+        MouseButton    Button    = MouseButton::None;
+        uint8_t        Modifiers = 0;                    // ModifierKey 位掩码
        
-        int   mouseX = 0;     // 客户区像素坐标
-        int   mouseY = 0;      
-        float worldX = 0.f;   // 世界坐标（InputSystem 统一做视口反变换）
-        float worldY = 0.f;
+        int   MouseX     = 0;     // 客户区像素坐标
+        int   MouseY     = 0;
+		int   LastMouseX = 0;     //上一个事件的坐标 
+		int   LastMouseY = 0;    
 
-        float    wheelDelta = 0.f;
-        uint32_t keyCode = 0;
+        float    WheelDelta = 0.f;
+        uint32_t KeyCode = 0;
 
         bool HasModifier(ModifierKey k) const
         {
-            return (modifiers & static_cast<uint8_t>(k)) != 0;
+            return (Modifiers & static_cast<uint8_t>(k)) != 0;
         }  
     };  
 }
