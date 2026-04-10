@@ -1,5 +1,5 @@
 #pragma once
-#include "App/Abstractions/ICommand.h"
+#include "App/CommandStack/ICommand.h"
 #include "Core/Object/Object.hpp"
 #include <vector>
 #include <memory>

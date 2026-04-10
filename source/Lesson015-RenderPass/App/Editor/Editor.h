@@ -28,6 +28,9 @@ namespace MiniCAD
         void OnKeyUp          (const InputEvent& e);
         void OnMouseMove      (const InputEvent& e);   
         void OnMouseWheel     (const InputEvent& e);
+
+    private:
+        void DeleteSelected();
     private: 
         Scene*        m_scene     = nullptr;      
         CommandStack* m_cmdStack  = nullptr; 

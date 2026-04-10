@@ -2,8 +2,10 @@
 #include "App/Scene/Scene.h"
 #include "App/CommandStack/CommandStack.h"  
 #include "App/Input/InputEvent.h" 
-#include <App/Tools/LineTool.h>
-
+#include "App/Tools/LineTool.h"
+#include "App/Command/DeleteEntityCommand.h"
+#include "App/Command/BatchDeleteCommand.h"
+#include <memory>
 namespace MiniCAD
 {
     Editor::Editor(Scene* scene, CommandStack* cmdStack)
@@ -104,6 +106,12 @@ namespace MiniCAD
             m_tool = std::make_unique<LineTool>(m_scene, m_cmdStack);
             return;
         }
+		// Delete：删除选中
+        if (e.KeyCode == VK_DELETE)
+        { 
+            DeleteSelected();
+            return;
+        }
 
         // Ctrl+Z：Undo
         if (e.HasModifier(ModifierKey::Ctrl) && e.KeyCode == 'Z')
@@ -163,6 +171,20 @@ namespace MiniCAD
     void Editor::OnMouseWheel(const InputEvent& e)
     {
 		m_scene->GetCamera()->Zoom(e.WheelDelta, e.MouseX, e.MouseY);
+    }
+
+    void Editor::DeleteSelected()
+    {
+		auto ids = m_picking.GetSelection(); // 获取选中对象 ID 列表
+        if (ids.empty())
+            return;
+
+		std::vector<Object::ObjectID> idsVec(ids.begin(), ids.end()); // 转换为 vector
+
+        auto cmd = std::make_unique<BatchDeleteCommand>(idsVec);
+
+        m_cmdStack->Execute(std::move(cmd), *m_scene); 
+      
     }
      
    
