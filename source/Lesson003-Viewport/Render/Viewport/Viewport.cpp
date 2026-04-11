@@ -1,6 +1,6 @@
 ﻿#include "Viewport.h"
 #include <DirectXMath.h>
-#include "Render/Extraction/RenderExtractor.h"
+#include "Render/D3D11/Renderer.h"
 using namespace DirectX;
 
 namespace MiniCAD
@@ -10,10 +10,9 @@ namespace MiniCAD
         : m_renderer(renderer) 
     {
         m_camera = std::make_unique<Camera>(width, height);  
-        m_grid   = std::make_unique<Grid>(m_camera->GetCameraPos());
     }
 
-    void Viewport::Render(const RenderTarget& target, const ISceneReader& scene)
+    void Viewport::Render(const RenderTarget& target)
     {
         if (!m_renderer || !m_camera) return;
          
@@ -21,11 +20,15 @@ namespace MiniCAD
          
         m_renderer->Begin(target, vp);
   
-        //  直接用缓存数据
-        for (auto& preview : m_cachedPreviews)
+        // 绘制一个三角形
+        LineVertex tri[3] =
         {
-            m_renderer->Submit(preview.vertices.data(), preview.vertices.size());
-        }  
+            {{ 0.0f,  0.5f, 0.0f}, {1,0,0,1}},  // 顶部 红
+            {{ 0.5f, -0.5f, 0.0f}, {0,1,0,1}},  // 右下 绿
+            {{-0.5f, -0.5f, 0.0f}, {0,0,1,1}},  // 左下 蓝
+        };
+         
+        m_renderer->Submit(tri, 3);
          
         m_renderer->End();
     }
@@ -40,12 +43,6 @@ namespace MiniCAD
         return m_camera.get();
     }
 
-    void Viewport::RefreshRenderData(const ISceneReader& scene)
-    {
-        m_cachedItems.clear();
-        m_cachedPreviews.clear();
-        RenderExtractor::Extract(scene, m_cachedItems, m_cachedPreviews);
-    }
       
     void Viewport::Pan(float dx, float dy)
     { 

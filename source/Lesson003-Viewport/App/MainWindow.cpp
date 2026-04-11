@@ -73,18 +73,57 @@ namespace MiniCAD
 		return DefWindowProcW(hwnd, msg, wParam, lParam); 
 	}
 
+	int LastMouseX = 0;
+	int LastMouseY = 0;
+	bool m_isPanning = false;
 	LRESULT MainWindow::EventProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-	{ 
+	{
+		
+		POINT curPt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 		switch (msg)
 		{
 		case WM_SIZE:
 		{
 			UINT w = LOWORD(lParam), h = HIWORD(lParam);
 			if (m_swapChain) m_swapChain->Resize(w, h); 
+
+			if (m_viewport)m_viewport->Resize(w, h);
+			 
 			return 0;
 		}
+		case WM_MOUSEMOVE:  
+			if (m_isPanning && m_viewport) {
+				int dx = curPt.x - LastMouseX;
+				int dy = curPt.y - LastMouseY;
+				m_viewport->Pan(dx, dy);
+			}
+			LastMouseX = curPt.x;
+			LastMouseY = curPt.y;
+			return 0;
+		case WM_MBUTTONDOWN: // 鼠标按下
+			m_isPanning = true;
+			LastMouseX = curPt.x;
+			LastMouseY = curPt.y;
+			SetCapture(hwnd);   // 捕获鼠标，防止移出窗口丢失事件
+			return 0;
+		case WM_MBUTTONUP: // 鼠标抬起
+			m_isPanning = false;
+			ReleaseCapture();
+			return 0;
+		case WM_MOUSEWHEEL: 
+		{ 
 
+			POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			ScreenToClient(hwnd, &pt); // ！！！屏幕坐标转为客户区
 
+			int	mouseX = pt.x;
+			int	mouseY = pt.y;
+			float wheelDelta = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA;
+
+			if (m_viewport)m_viewport->Zoom(wheelDelta, mouseX, mouseY);
+
+			return 0;
+		}
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			return 0;
@@ -166,27 +205,18 @@ namespace MiniCAD
 		m_swapChain->Initialize(m_device.get(), m_hwnd, width, height, opt);// 初始化交换链
 		m_renderer = std::make_unique<Renderer>(m_device->GetDevice(), m_device->GetContext());
 
+		m_viewport = std::make_unique<Viewport>(m_renderer.get(), width, height);
+
 		return true;
 	}
 
 	void MainWindow::RenderFrame()
 	{
 		auto target = m_swapChain->GetRenderTarget(); 
-
-		m_renderer->Begin(target, XMMatrixIdentity());
+ 
 		 
-		// 绘制一个三角形
-		LineVertex tri[3] =
-		{
-			{{ 0.0f,  0.5f, 0.0f}, {1,0,0,1}},  // 顶部 红
-			{{ 0.5f, -0.5f, 0.0f}, {0,1,0,1}},  // 右下 绿
-			{{-0.5f, -0.5f, 0.0f}, {0,0,1,1}},  // 左下 蓝
-		};
-
-		m_renderer->Submit(tri, 3);
-
-
-		m_renderer->End();
+		m_viewport->Render(target);
+	 
 
 		m_swapChain->Present();
 

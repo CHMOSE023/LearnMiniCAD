@@ -4,6 +4,7 @@
 #include "Render/D3D11/Device.h"
 #include "Render/D3D11/SwapChain.h"
 #include "Render/D3D11/Renderer.h"
+#include "Render/Viewport/Viewport.h"
 namespace MiniCAD
 {
 	class MainWindow
@@ -33,5 +34,8 @@ namespace MiniCAD
 		std::unique_ptr<Device>       m_device;
 		std::unique_ptr<SwapChain>    m_swapChain;
 		std::unique_ptr<Renderer>     m_renderer;
+
+		// 
+		std::unique_ptr<Viewport>     m_viewport; 
 	};
 }
