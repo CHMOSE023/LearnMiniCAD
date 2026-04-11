@@ -6,7 +6,7 @@ int main()
 
 	MainWindow mainWindow;
 
-	mainWindow.Initialize(L"Lesson004-Shader",600,400);
+	mainWindow.Initialize(L"Lesson004-Renderer",600,400);
 	mainWindow.Run();
 
 }

@@ -1,6 +1,6 @@
 cbuffer VSConstants : register(b0)
 {
-    float4x4 mvp;
+    float4x4 vp;
 };
 
 struct VSInput
@@ -18,7 +18,7 @@ struct PSInput
 PSInput VSMain(VSInput input)
 {
     PSInput o;
-    o.pos = mul(float4(input.pos, 1.0f), mvp);
+    o.pos = mul(float4(input.pos, 1.0f), vp);
     o.color = input.color;
     return o;
 }

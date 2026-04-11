@@ -6,18 +6,18 @@ namespace MiniCAD
         ShaderProgram sp;
         ComPtr<ID3DBlob> vsBlob, psBlob, errorBlob;
         auto compileShader = [file](const char* entry, const char* target, ID3DBlob** shaderBlob)
+        {
+            ComPtr<ID3DBlob> errorBlob;
+            HRESULT hr = D3DCompileFromFile(file, nullptr, nullptr, entry, target, 0, 0, shaderBlob, errorBlob.GetAddressOf());
+            if (FAILED(hr))
             {
-                ComPtr<ID3DBlob> errorBlob;
-                HRESULT hr = D3DCompileFromFile(file, nullptr, nullptr, entry, target, 0, 0, shaderBlob, errorBlob.GetAddressOf());
-                if (FAILED(hr))
-                {
-                    std::string details = errorBlob
-                        ? static_cast<const char*>(errorBlob->GetBufferPointer())
-                        : std::format("HRESULT=0x{:08X}", static_cast<unsigned int>(hr));
+                std::string details = errorBlob
+                    ? static_cast<const char*>(errorBlob->GetBufferPointer())
+                    : std::format("HRESULT=0x{:08X}", static_cast<unsigned int>(hr));
 
-                    ReportError(std::format("Shader compile failed: {} [{} -> {}]", details, entry, target));
-                }
-            };
+                ReportError(std::format("Shader compile failed: {} [{} -> {}]", details, entry, target));
+            }
+        };
 
         compileShader("VSMain", "vs_5_0", vsBlob.GetAddressOf());
         compileShader("PSMain", "ps_5_0", psBlob.GetAddressOf());
