@@ -30,7 +30,7 @@ namespace MiniCAD
         Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthStateDisabled;
         Microsoft::WRL::ComPtr<ID3D11BlendState>        m_blendState;
          
-        ULONG64 m_maxVertices = 65536 * 1024; // 6700万个顶点，太大了
+        ULONG64 m_maxVertices = 65536;  // 每个批次最大点数量
 
         // shader 相关状态
         PipelineState    m_currentPSO = {};
