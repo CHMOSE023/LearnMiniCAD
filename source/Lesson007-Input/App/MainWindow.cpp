@@ -1,12 +1,8 @@
-#include "MainWindow.h"
-#include <ErrorReporter.h>
+#include "MainWindow.h" 
 namespace MiniCAD
 {
 	MainWindow::MainWindow() 
-		: m_hwnd(0)
-		, m_device(nullptr)
-		, m_swapChain(nullptr)
-		, m_renderer(nullptr)
+		: m_hwnd(0) 
 	{}
 
 	MainWindow::~MainWindow()
@@ -15,9 +11,7 @@ namespace MiniCAD
 	bool MainWindow::Initialize(const wchar_t* title, int width, int height)
 	{
 		InitWindow(title,width,height);
-
-		InitD3D11(width, height);
-
+		  
 		return true;
 	}
 
@@ -79,8 +73,8 @@ namespace MiniCAD
 		{
 		case WM_SIZE:
 		{
-			UINT w = LOWORD(lParam), h = HIWORD(lParam);
-			if (m_swapChain) m_swapChain->Resize(w, h); 
+			UINT w = LOWORD(lParam), h = HIWORD(lParam); 
+			printf("WM_SIZE:%d,%d\n", w, h);
 			return 0;
 		}
 		// ───────────── 输入消息交给 InputSystem ─────────────
@@ -146,65 +140,13 @@ namespace MiniCAD
 
 		// 4.更新窗口
 		UpdateWindow(m_hwnd);
-
-		// 注册错误处理器
-		SetErrorHandler([this](const std::string& msg)
-			{
-				int len = MultiByteToWideChar(CP_UTF8, 0, msg.c_str(), -1, nullptr, 0);
-				std::wstring wmsg(len, 0);
-				MultiByteToWideChar(CP_UTF8, 0, msg.c_str(), -1, wmsg.data(), len);
-				MessageBox(m_hwnd, wmsg.c_str(), L"Error", MB_OK | MB_ICONERROR);
-			});
-
-
-		return m_hwnd != nullptr;
-
-
+		 
+		return m_hwnd != nullptr; 
 	}
 
-	bool MainWindow::InitD3D11(int width, int height)
-	{
-		m_device = std::make_unique<Device>();       // 设备
-		m_device->Initialize();
-
-		m_swapChain = std::make_unique<SwapChain>(); // 交换链
-
-		SwapChain::Options opt;
-		opt.enableVSync = false;  // 禁止垂直同步，允许撕裂（仅限窗口模式）
-		opt.allowTearing = false; // 允许撕裂（仅限窗口模式）
-
-
-		m_swapChain->Initialize(m_device.get(), m_hwnd, width, height, opt);// 初始化交换链
-		m_renderer = std::make_unique<Renderer>(m_device->GetDevice(), m_device->GetContext());
-
-		return true;
-	}
-
+	  
 	void MainWindow::RenderFrame()
-	{
-		auto target = m_swapChain->GetRenderTarget(); 
-
-		m_renderer->Begin(target, XMMatrixIdentity());
-		 
-		// 绘制一个三角形
-		Vertex_P3_C4 tri[6] =
-		{
-			{{ 0.0f,  0.5f, 0.0f}, {1,0,0,1}},  // 顶部 红
-			{{ 0.5f, -0.5f, 0.0f}, {0,1,0,1}},  // 右下 绿
-
-			{{-0.5f, -0.5f, 0.0f}, {0,0,1,1}},  // 左下 蓝
-			{{ 0.0f,  0.5f, 0.0f}, {1,0,0,1}},  // 顶部 红
-
-		    {{ 0.5f, -0.5f, 0.0f}, {0,1,0,1}},  // 右下 绿
-			{{-0.5f, -0.5f, 0.0f}, {0,0,1,1}},  // 左下 蓝
-
-		};
-		 
-		m_renderer->DrawLine({ tri[0], tri[1], tri[2], tri[3], tri[4], tri[5] }); 
-		m_renderer->End();
-
-		m_swapChain->Present();
-
+	{  
 	}
 
 }

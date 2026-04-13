@@ -16,15 +16,18 @@ namespace MiniCAD
         bool Dispatch(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
         // 给 MainWindow 读取最新鼠标位置（用于中键 pan 的 delta 计算）
-        POINT LastMousePos() const { return m_lastMousePos; }
+        POINT LastMousePos() const;
+        bool  IsMouseButtonDown(MouseButton button) const;
 
     private:
         InputEvent BuildEvent(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
         static uint8_t GetModifiers();  
+        static uint8_t GetMouseButtons();
 
         std::vector<IInputHandler*> m_chain;
          
-        POINT       m_lastMousePos = {};
+        POINT       m_lastMousePos  = {};
+        POINT       m_pressMousePos = {};
     };
 }

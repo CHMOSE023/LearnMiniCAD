@@ -1,4 +1,4 @@
-#include "MainWindow.h"
+#include "App/MainWindow.h"
 
 using namespace MiniCAD;
 int main()
