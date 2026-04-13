@@ -1,6 +1,4 @@
-#include "App/Scene/Scene.h" 
-#include "Core/ISerializer.h"  
-#include "Core/Entity/ObjectFactory.hpp"  
+#include "App/Scene/Scene.h"  
 #include <algorithm>
 namespace MiniCAD
 {  
@@ -10,6 +8,16 @@ namespace MiniCAD
 		ObjectID id    = entity->GetID();   
 		m_entities[id] = std::move(entity);
 		MarkDirty();
+	}
+
+	void Scene::AddPreviewEntity(std::unique_ptr<Object> entity)
+	{
+		m_previews.push_back(std::move(entity));	
+	}
+
+	void Scene::ClearPreviews()
+	{
+		m_previews.clear();
 	}
 
 	std::unique_ptr<Object> Scene::RemoveEntity(ObjectID id)
@@ -51,51 +59,22 @@ namespace MiniCAD
 		return ids;
 	}
 
-	void Scene::Serialize(ISerializer& s) const
-	{ 
-		// 保存图层
-		m_layerManager.Serialize(s);
-        
-		// 保存对象
-		s.WriteUInt64(m_entities.size());
-
-		for (auto& pair : m_entities)
+	void Scene::ForEachObject(std::function<void(const Object&)> fn) const
+	{
+		for (const auto& [id, obj] : m_entities)
 		{
-			Object::ObjectID id = pair.first;
-
-			Object* obj = pair.second.get();
-
-			s.WriteUInt64(id);                // 保存对象ID 
-
-			obj->Serialize(s);                // 调用对象自己的序列化
+			fn(*obj);
 		}
 	}
 
-	void Scene::Deserialize(ISerializer& s)
+	void Scene::ForEachPreview(std::function<void(const Object&)> fn) const
 	{
-		// 1 加载图层
-		m_layerManager.Deserialize(s);
-
-		// 2 先清空原数据
-		m_entities.clear();	
-
-		// 3️ 加载对象
-		uint64_t objCount = s.ReadUInt64();
-		for (uint64_t i = 0; i < objCount; ++i)
-		{ 
-			Object::ObjectID id = s.ReadUInt64();  
-
-			// 4️ 使用 ObjectFactory 创建具体对象
-			std::unique_ptr<Object> obj = ObjectFactory::Get().CreateFromSerializer(s); 
-			if (!obj) continue;   // 未知类型，跳过
-			
-			obj->SetID(id); // 恢复对象 ID（Deserialize 后对象的 ID 是 InvalidID）
-			
-			m_entities[id] = std::move(obj);			 
-		} 
-
-		SyncNextObjectID();		 
+		for (const auto& obj : m_previews)
+		{
+			fn(*obj);
+		}
 	}
+	 
 	void Scene::SyncNextObjectID()
 	{
 		ObjectID maxID = 0;

@@ -1,5 +1,4 @@
-#include "LayerManager.h"  
-#include "Core/ISerializer.h"
+#include "LayerManager.h"   
 namespace MiniCAD
 {
     LayerManager::LayerManager()
@@ -66,33 +65,6 @@ namespace MiniCAD
     void LayerManager::SetActiveLayerID(LayerID id)
     {
         if (m_layers.count(id)) m_activeLayerID = id;
-    }
-
-    void LayerManager::Serialize(ISerializer& s) const
-    {        
-        s.WriteUInt64(m_layers.size());                   // 图层数量
-        for (const auto& [id, layer] : m_layers)          // 每个 Layer
-        {                                                 
-            layer->Serialize(s);                          
-        }                                                 
-        s.WriteUInt64(m_activeLayerID);                   // 当前激活图层
-        s.WriteUInt64(m_nextID.load());                   // ID生成器状态
-    }
-
-    void LayerManager::Deserialize(ISerializer & s)
-    {     
-        m_layers.clear();                                 // 清空现有数据            
-        uint64_t count = s.ReadUInt64();                  // 读图层数量        
-        for (uint64_t i = 0; i < count; ++i)              // 读每个 Layer
-        {                                                 
-            auto layer = std::make_unique<Layer>(0, "");  // 临时占位
-                                                          
-            layer->Deserialize(s);                        // 让 Layer 自己恢复数据
-            LayerID id = layer->GetID();
-            m_layers[id] = std::move(layer);
-        }  
-        m_activeLayerID = s.ReadUInt64();                 //  读当前激活图层       
-        m_nextID = s.ReadUInt64();                        // 恢复 ID 生成器
-    }
+    } 
 
 }

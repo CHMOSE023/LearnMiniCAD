@@ -1,8 +1,7 @@
 #pragma once
 
 namespace MiniCAD 
-{
-
+{ 
     struct RuntimeTypeInfo
     {
         const char* name;                  // 类型名
