@@ -19,8 +19,11 @@ namespace MiniCAD
     /// <summary>
     /// 责任链模式，消息处理有优先级
     /// </summary> 
-    bool Editor::OnInput(const InputEvent& e)
+    bool Editor::OnInput(const InputEvent& inputEvent)
     { 
+        UpdateSnap(inputEvent);                // 更新捕获
+        InputEvent e = InjectSnap(inputEvent); // 注入捕获
+
         // 1️ 全局按键优先处理
         if (e.Type == InputEventType::KeyDown && e.KeyCode == VK_ESCAPE)
         { 
@@ -66,6 +69,50 @@ namespace MiniCAD
         m_scene->GetCamera()->Resize(width, height);
     }
 
+    void Editor::UpdateSnap(const InputEvent& e)
+    {
+        if (!ShouldSnap())
+            return;
+
+        const Camera* cam = m_scene->GetCamera();
+
+        // 只在鼠标相关事件时更新（避免无意义计算）
+        switch (e.Type)
+        {
+        case InputEventType::MouseMove:
+        case InputEventType::MouseButtonDown:
+        case InputEventType::MouseButtonUp:
+            m_currentSnap = m_snap.Query({static_cast<float>(e.MouseX), static_cast<float>(e.MouseY)}, m_scene, cam);
+            break;
+        default:
+            break;
+        } 
+    }
+
+    bool Editor::ShouldSnap() const
+    {
+        if (m_tool) return true;
+        if (m_gripEditor.IsDragging()) return true;
+        // 未来还可以加更多交互状态
+        return false;
+    }
+    InputEvent Editor::InjectSnap(const InputEvent& e)
+    {
+        InputEvent out = e;
+
+        if (m_currentSnap.IsValid())
+        {
+            out.HasSnap = true;
+            out.SnapWorld = m_currentSnap.WorldPos;
+        }
+        else
+        {
+            out.HasSnap = false;
+        }
+
+        return out;
+    }
+
 	// 帧度更新时，Viewport 会调用 Editor::BuildViewState 
     // 来获取当前的 ViewState（Selection/Hovered/ShowGrid/ShowGizmo）
     ViewState Editor::BuildViewState() const
@@ -82,7 +129,9 @@ namespace MiniCAD
 
         vs.BoxSelected  = m_picking.IsBoxSelected();
         vs.BoxPressX    = m_picking.GetBoxPress().x;
-        vs.BoxPressY    = m_picking.GetBoxPress().y;
+        vs.BoxPressY    = m_picking.GetBoxPress().y; 
+
+        vs.CrossBox     = (m_tool == NULL); // 进入工具状态不显示 光标中间方框
 
         auto* cam = m_scene->GetCamera();
 
@@ -210,15 +259,12 @@ namespace MiniCAD
         }
         
 		//  每帧统一算一次，结果缓存在 m_currentSnap
-        const Camera* cam = m_scene->GetCamera();
-        m_currentSnap = m_snap.Query({ m_mouseX, m_mouseY }, m_scene, cam);
+        const Camera* cam = m_scene->GetCamera(); 
  
         if (m_currentSnap.IsValid())
         {
             printf("[Editor]  CurrentSnap  (%0.2f, %0.2f) \n", m_currentSnap.WorldPos.x, m_currentSnap.WorldPos.y);
-        }
-		
-      
+        } 
         
         if (m_gripEditor.OnMouseMove(e))
         {

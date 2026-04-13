@@ -36,10 +36,13 @@ namespace MiniCAD
         bool ShowGrid  = true;
         bool ShowGizmo = true;
 
+        bool CrossBox  = true;  
+
 		float MouseX = 0.0f; // 可选：鼠标位置（屏幕坐标）
 		float MouseY = 0.0f;  
            
         // 是否显示框选矩形（由 Editor 控制）
+
         bool  BoxSelected = true;
         float BoxPressX   = 0.0f;
         float BoxPressY   = 0.0f;

@@ -116,6 +116,10 @@ namespace MiniCAD
 
         XMFLOAT3 ScreenToWorld(const InputEvent& e)
         {   
+            // ！！如果捕获有效 使用捕获
+            if (e.HasSnap)
+                return e.SnapWorld;
+
             auto p =  m_scene->GetCamera()->ScreenToWorld(e.MouseX,e.MouseY);            
             return XMFLOAT3(p.x, p.y, 0.f); // CAD 永远在 XY 平面，强制 Z=0
         }

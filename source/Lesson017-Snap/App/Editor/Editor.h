@@ -35,6 +35,9 @@ namespace MiniCAD
     private:
         void DeleteSelected();
         void OnSelectionChanged();   // 新增：选集变化时统一处理
+        void UpdateSnap(const InputEvent& e); 
+        bool ShouldSnap() const;     // 是否允许捕获
+        InputEvent  InjectSnap(const InputEvent& e); // 注入捕获事件
     private: 
         Scene*        m_scene     = nullptr;      
         CommandStack* m_cmdStack  = nullptr; 

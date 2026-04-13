@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint> 
-
+#include <DirectXMath.h>
 namespace MiniCAD
 {
     enum class InputEventType : uint8_t
@@ -51,6 +51,9 @@ namespace MiniCAD
         float    WheelDelta = 0.f;
 
         uint32_t KeyCode = 0;
+
+        bool               HasSnap = false;  // 是否捕获
+        DirectX::XMFLOAT3  SnapWorld ;       // 捕获点
 
         bool HasModifier(ModifierKey k) const
         {
