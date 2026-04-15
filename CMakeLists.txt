@@ -11,6 +11,22 @@ endif()
 
 find_package(directxtk CONFIG REQUIRED)
 
+add_library(imgui
+    thirdParty/imgui/imgui.cpp
+    thirdParty/imgui/imgui_draw.cpp
+    thirdParty/imgui/imgui_widgets.cpp
+    thirdParty/imgui/imgui_tables.cpp
+    
+
+    thirdParty/imgui/backends/imgui_impl_win32.cpp
+    thirdParty/imgui/backends/imgui_impl_dx11.cpp
+)
+
+target_include_directories(imgui PUBLIC
+    thirdParty/imgui
+    thirdParty/imgui/backends
+)
+
 set(LESSON_ROOT "${CMAKE_SOURCE_DIR}/source")                                   # 1.源码根目录
                                                                                 
 file(GLOB LESSON_NAMES RELATIVE ${LESSON_ROOT} ${LESSON_ROOT}/*)                # 2.获取每课程的目录名（即子文件夹名），GLOB仅包括子目录
@@ -27,8 +43,8 @@ foreach(LESSON_NAME ${LESSON_NAMES})                                            
         target_include_directories(${LESSON_NAME} PRIVATE "${LESSON_DIR}/")     # 3.4 课程私有头文件目录
 
         target_link_libraries(${LESSON_NAME} PRIVATE                            # 3.5 链接所需库
-            Microsoft::DirectXTK d3d11 dxgi d3dcompiler
-        )
+            Microsoft::DirectXTK d3d11 dxgi d3dcompiler  imgui
+        ) 
 
         set_target_properties(${LESSON_NAME} PROPERTIES                         # 3.6 可执行文件输出目录
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${LESSON_NAME}"
