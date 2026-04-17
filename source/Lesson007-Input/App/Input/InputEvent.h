@@ -14,17 +14,16 @@ namespace MiniCAD
         KeyUp,
     };
 
-    enum class MouseButton : uint8_t { None, Left, Middle, Right };
+    enum class MouseButton : uint8_t { None, Left, Middle, Right };  // 单个事件的触发键，本次 Down 事件是哪个键
 
-    enum class MouseButtonState : uint8_t
+    enum class MouseButtonState : uint8_t                            // 拖拽中判断是否仍按住, Move 事件时哪些键还按着
     {
         None   = 0,
         Left   = 1 << 0,
         Middle = 1 << 1,
         Right  = 1 << 2,
     };
-
-    enum class ModifierKey : uint8_t
+    enum class ModifierKey : uint8_t                                 // 键盘修饰键, Ctrl+点击、Shift+拖拽                   
     {
         None  = 0,
         Shift = 1 << 0,
