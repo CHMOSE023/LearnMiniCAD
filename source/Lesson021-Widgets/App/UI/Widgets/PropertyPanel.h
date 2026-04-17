@@ -1,16 +1,19 @@
 #pragma once
-#include <string> 
 #include "ImGuiWidgetBase.h" 
+#include "PropertySubPanelBase.h"
+#include <string> 
+#include <unordered_map>
+#include <typeindex>
+#include <memory>
 namespace MiniCAD
 {
     class PropertyPanel : public  ImGuiWidgetBase
     {
     public:
+        PropertyPanel();
         virtual void        OnRender(Document& document) override;
         virtual const char* GetName() const  override; 
     private:
-        // 生成直线属性面板
-        // 生成圆属性面板
-        // 生成块属性面板
+        std::unordered_map<std::type_index, std::unique_ptr<PropertySubPanelBase>> m_subPanels;
     };
 }
