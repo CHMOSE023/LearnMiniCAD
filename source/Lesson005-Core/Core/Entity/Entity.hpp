@@ -13,6 +13,9 @@ namespace MiniCAD
         EntityAttr&       GetAttr()                    { return m_attr; }
         const EntityAttr& GetAttr() const              { return m_attr; }
         void              SetAttr(const EntityAttr& a) { m_attr = a; }
+        LayerID           GetLayerID() const           { return m_attr.LayerId; }
+        void              SetLayerId(LayerID id)       { m_attr.LayerId = id; }
+
         virtual AABB      GetBoundingBox() const = 0;
     protected:
         explicit Entity(ObjectID id) : Object(id) {}
