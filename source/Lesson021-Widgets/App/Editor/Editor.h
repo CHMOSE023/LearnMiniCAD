@@ -48,9 +48,11 @@ namespace MiniCAD
         void SetSnapEnabled(bool enabled);
         void ToggleSnap();
 
-        // ── Undo / Redo ───────────────────────────────────────
+        // ── Undo / Redo / Command  ─────────────────────
         void Undo();
         void Redo();  
+        void ExecuteCommand(std::unique_ptr<ICommand> cmd);
+
 
       
     private:

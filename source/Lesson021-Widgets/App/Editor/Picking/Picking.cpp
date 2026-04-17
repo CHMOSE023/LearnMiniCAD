@@ -2,8 +2,8 @@
 #include "App/Scene/Scene.h"
 #include "Core/Object/Object.hpp"
 #include "Render/Viewport/Camera.h"
-#include <cmath>
-#include <windows.h>
+#include <cmath> 
+#include "pch.h"
 
 namespace MiniCAD
 {  

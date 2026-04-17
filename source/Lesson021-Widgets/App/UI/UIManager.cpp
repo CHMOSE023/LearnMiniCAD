@@ -25,7 +25,7 @@ namespace MiniCAD
 
         // 启用 Docking（关键）
         ImGuiIO& io = ImGui::GetIO(); 
-
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // 
         io.Fonts->AddFontFromFileTTF(
             "C:/Windows/Fonts/msyh.ttc",   // 微软雅黑
             16.0f,
@@ -104,28 +104,27 @@ namespace MiniCAD
 
         ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
 
-        ImGui::DockSpace(dockspace_id, ImVec2(0, 0),
-            ImGuiDockNodeFlags_PassthruCentralNode);
+        ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
 
         // 只执行一次布局
-        static bool init = true;
-        if (init)
-        {
-            init = false;
-
-            ImGui::DockBuilderRemoveNode(dockspace_id);
-            ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
-            ImGui::DockBuilderSetNodeSize(dockspace_id, vp->Size);
-
-            ImGuiID dock_main = dockspace_id;
-
-            ImGuiID dock_bottom = ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Down, 0.2f, nullptr, &dock_main);
-
-            ImGui::DockBuilderDockWindow("状态", dock_bottom);
-            ImGui::DockBuilderDockWindow("命令", dock_bottom);
-
-            ImGui::DockBuilderFinish(dockspace_id);
-        }
+        /*  static bool init = true;
+          if (init)
+          {
+              init = false;
+        
+              ImGui::DockBuilderRemoveNode(dockspace_id);
+              ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
+              ImGui::DockBuilderSetNodeSize(dockspace_id, vp->Size);
+        
+              ImGuiID dock_main = dockspace_id;
+        
+              ImGuiID dock_bottom = ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Down, 0.2f, nullptr, &dock_main);
+        
+              ImGui::DockBuilderDockWindow("状态", dock_bottom);
+              ImGui::DockBuilderDockWindow("命令", dock_bottom);
+        
+              ImGui::DockBuilderFinish(dockspace_id);
+          }*/
 
         ImGui::End();
     } 

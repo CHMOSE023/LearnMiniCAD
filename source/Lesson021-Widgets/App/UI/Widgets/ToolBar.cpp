@@ -11,7 +11,7 @@ namespace MiniCAD
 
     void ToolBar::OnRender(Document& document)
     { 
-        ImGui::Begin("##Toolbar", nullptr );
+        ImGui::Begin(GetName(), nullptr );
         {
             auto& editor = document.GetEditor();
            

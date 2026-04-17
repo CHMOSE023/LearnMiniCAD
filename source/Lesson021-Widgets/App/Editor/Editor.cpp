@@ -517,6 +517,11 @@ namespace MiniCAD
         OnSelectionChanged();
     }
 
+    void Editor::ExecuteCommand(std::unique_ptr<ICommand> cmd) 
+    {
+        m_cmdStack->Execute(std::move(cmd), *m_scene);
+    }
+
     void Editor::StartLineTool()
     {
         if (m_tool)

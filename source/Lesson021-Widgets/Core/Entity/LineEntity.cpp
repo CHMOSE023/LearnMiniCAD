@@ -1,6 +1,6 @@
 #include "LineEntity.hpp"
 #include "Core/Entity/ObjectFactory.hpp"
-
+#include "EntityAttr.hpp"
 using namespace DirectX;
 
 namespace MiniCAD
@@ -29,15 +29,16 @@ namespace MiniCAD
         s.WriteFloat(m_line.End.y);
         s.WriteFloat(m_line.End.z);
 
-        s.WriteFloat(m_attr.Color.x);
-        s.WriteFloat(m_attr.Color.y);
-        s.WriteFloat(m_attr.Color.z);
-        s.WriteFloat(m_attr.Color.w);
+        auto attr =  GetAttr();
+        s.WriteFloat(attr.Color.x);
+        s.WriteFloat(attr.Color.y);
+        s.WriteFloat(attr.Color.z);
+        s.WriteFloat(attr.Color.w);
 
-        s.WriteUInt64(m_attr.LayerId);
-        s.WriteUInt64(static_cast<uint64_t>(m_attr.LineType));
-        s.WriteFloat(m_attr.LineWidth);
-        s.WriteBool(m_attr.Visible);
+        s.WriteUInt64(attr.LayerId);
+        s.WriteUInt64(static_cast<uint64_t>(attr.LineType));
+        s.WriteFloat (attr.LineWidth);
+        s.WriteBool  (attr.Visible);
     }
 
     // ── Deserialize ──────────────────────────────────────────
@@ -50,14 +51,18 @@ namespace MiniCAD
         m_line.End.y = s.ReadFloat();
         m_line.End.z = s.ReadFloat();
 
-        m_attr.Color.x = s.ReadFloat();
-        m_attr.Color.y = s.ReadFloat();
-        m_attr.Color.z = s.ReadFloat();
-        m_attr.Color.w = s.ReadFloat();
+        EntityAttr attr = {};
 
-        m_attr.LayerId = static_cast<LayerID>(s.ReadUInt64());
-        m_attr.LineType = static_cast<LineType>(s.ReadUInt64());
-        m_attr.LineWidth = s.ReadFloat();
-        m_attr.Visible = s.ReadBool();
+        attr.Color.x = s.ReadFloat();
+        attr.Color.y = s.ReadFloat();
+        attr.Color.z = s.ReadFloat();
+        attr.Color.w = s.ReadFloat();
+
+        attr.LayerId = static_cast<LayerID>(s.ReadUInt64());
+        attr.LineType = static_cast<LineType>(s.ReadUInt64());
+        attr.LineWidth = s.ReadFloat();
+        attr.Visible = s.ReadBool();
+
+        SetAttr(attr);
     }
 }

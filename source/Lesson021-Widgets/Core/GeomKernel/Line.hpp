@@ -5,10 +5,7 @@
 using namespace DirectX;
 
 namespace MiniCAD
-{ 
-	/// <summary>
-	/// 直线
-	/// </summary> 
+{  
 	struct Line
 	{
 	public:
@@ -31,8 +28,7 @@ namespace MiniCAD
 			XMVECTOR s = XMLoadFloat3(&Start);
 			XMVECTOR e = XMLoadFloat3(&End);
 			return XMVector3Normalize(XMVectorSubtract(e, s));
-		}
-
+		} 
 
 		float Length() const
 		{
@@ -48,9 +44,7 @@ namespace MiniCAD
 
 		XMFLOAT3 Midpoint() const
 		{
-			XMVECTOR mid = XMVectorScale(
-				XMVectorAdd(XMLoadFloat3(&Start), XMLoadFloat3(&End)), 0.5f);
-
+			XMVECTOR mid = XMVectorScale(XMVectorAdd(XMLoadFloat3(&Start), XMLoadFloat3(&End)), 0.5f); 
 			XMFLOAT3 result;
 			XMStoreFloat3(&result, mid);
 			return result;
@@ -62,7 +56,7 @@ namespace MiniCAD
 		// =============================
 		XMVECTOR PointAt(float t) const
 		{
-			XMVECTOR s = XMLoadFloat3(&Start);
+			XMVECTOR s   = XMLoadFloat3(&Start);
 			XMVECTOR dir = Vector();
 			return XMVectorAdd(s, XMVectorScale(dir, t));
 		}
@@ -70,20 +64,18 @@ namespace MiniCAD
 		// 投影参数 t
 		float ProjectParam(const XMFLOAT3& p) const
 		{
-			XMVECTOR s = XMLoadFloat3(&Start);
-			XMVECTOR v = Vector();
+			XMVECTOR s  = XMLoadFloat3(&Start);
+			XMVECTOR v  = Vector();
 			XMVECTOR pt = XMLoadFloat3(&p);
 
 			float lenSq = XMVectorGetX(XMVector3LengthSq(v));
-			if (lenSq < EPSILON) return 0.0f;
 
-			float t = XMVectorGetX(
-				XMVector3Dot(XMVectorSubtract(pt, s), v)) / lenSq;
+			if (lenSq < EPSILON) 
+				return 0.0f;
 
-			if (IsSegment)
-			{
-				t = std::clamp(t, 0.0f, 1.0f);
-			}
+			float t = XMVectorGetX(XMVector3Dot(XMVectorSubtract(pt, s), v)) / lenSq;
+
+			if (IsSegment) { t = std::clamp(t, 0.0f, 1.0f); }
 
 			return t;
 		}
@@ -114,20 +106,9 @@ namespace MiniCAD
 		// =============================
 		AABB GetBounds() const
 		{
-			AABB box;
-
-			box.Min = {
-				std::min(Start.x, End.x),
-				std::min(Start.y, End.y),
-				std::min(Start.z, End.z)
-			};
-
-			box.Max = {
-				std::max(Start.x, End.x),
-				std::max(Start.y, End.y),
-				std::max(Start.z, End.z)
-			};
-
+			AABB box; 
+			box.Min = { std::min(Start.x, End.x), std::min(Start.y, End.y), std::min(Start.z, End.z) }; 
+			box.Max = { std::max(Start.x, End.x), std::max(Start.y, End.y), std::max(Start.z, End.z) }; 
 			return box;
 		}
 
@@ -156,4 +137,4 @@ namespace MiniCAD
 		static constexpr float EPSILON = 1e-6f;
 	};
 
-} // namespace MiniCAD
+} 

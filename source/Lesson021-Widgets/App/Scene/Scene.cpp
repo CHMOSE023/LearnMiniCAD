@@ -93,7 +93,11 @@ namespace MiniCAD
 
 			s.WriteUInt64(id);                // 保存对象ID 
 
-			obj->Serialize(s);                // 调用对象自己的序列化
+			auto* entity = dynamic_cast<Entity*>(obj);
+			if (entity)
+			{
+				entity->Serialize(s);
+			}
 		}
 	}
 

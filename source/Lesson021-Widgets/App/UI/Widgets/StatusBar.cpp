@@ -48,7 +48,7 @@ namespace MiniCAD
         {
             bool snapEnabled = document.GetEditor().IsSnapEnabled();
             ImVec2 btnPos = ImGui::GetCursorPos();
-            ImGui::TextColored(snapEnabled ? COLOR_ACTIVE : COLOR_INACTIVE, "捕捉: ");
+            ImGui::TextColored(snapEnabled ? COLOR_ACTIVE : COLOR_INACTIVE, "捕捉(F3): ");
             ImGui::SameLine();
             ImGui::TextColored(snapEnabled ? COLOR_ACTIVE : COLOR_INACTIVE, snapEnabled ? "开 " : "关  ");
             ImGui::SetCursorPos(btnPos);
@@ -68,7 +68,7 @@ namespace MiniCAD
             bool orthoEnabled = document.GetEditor().IsOrthoEnabled();
 
             ImVec2 btnPos = ImGui::GetCursorPos();
-            ImGui::TextColored(orthoEnabled ? COLOR_ACTIVE : COLOR_INACTIVE, "正交: ");
+            ImGui::TextColored(orthoEnabled ? COLOR_ACTIVE : COLOR_INACTIVE, "正交(F8): ");
             ImGui::SameLine();
             ImGui::TextColored(orthoEnabled ? COLOR_ACTIVE : COLOR_INACTIVE, orthoEnabled ? "开 " : "关 ");
             ImGui::SetCursorPos(btnPos);

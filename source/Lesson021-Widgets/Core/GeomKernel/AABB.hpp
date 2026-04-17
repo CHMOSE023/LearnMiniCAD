@@ -1,5 +1,7 @@
-#pragma once 
-#include "pch.h"
+#pragma once
+#include <DirectXMath.h>
+#include <algorithm>
+
 using namespace DirectX;
 
 namespace MiniCAD
