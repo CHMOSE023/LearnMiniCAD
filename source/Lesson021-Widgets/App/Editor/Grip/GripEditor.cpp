@@ -13,10 +13,12 @@ namespace MiniCAD
         XMFLOAT2 sp((float)e.MouseX, (float)e.MouseY);
         int idx = m_gripManager->HitTest(sp, m_scene->GetCamera());
           
-        if (idx < 0) return false;   // 没命中，让 Picking 处理 
+        if (idx < 0) return false;          // 没命中，让 Picking 处理 
         
         const auto& grip = m_gripManager->GetGrips()[idx]; 
         auto obj = m_scene->GetEntity(grip.OwnerID);
+        if (obj == nullptr) return false;  // 查询为空返回
+      
         if (obj->IsKindOf<LineEntity>())
         {
             m_drag.active = true;                //
