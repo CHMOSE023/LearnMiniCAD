@@ -125,7 +125,7 @@ namespace MiniCAD
         if (delta > 0) m_zoom /= zoomFactor;
         else           m_zoom *= zoomFactor;
 
-        m_zoom = std::max(0.1f, std::min(m_zoom, 100.0f));
+        m_zoom = std::max(0.1f, std::min(m_zoom, 1000.0f));
 
         // 3. 缩放后调整目标，使鼠标位置固定
         XMFLOAT3 worldAfter = ScreenToWorld(mouseX, mouseY);

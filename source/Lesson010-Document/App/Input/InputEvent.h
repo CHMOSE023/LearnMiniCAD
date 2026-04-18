@@ -1,6 +1,6 @@
 #pragma once
+#include"pch.h"
 #include <cstdint> 
-
 namespace MiniCAD
 {
     enum class InputEventType : uint8_t
@@ -18,44 +18,47 @@ namespace MiniCAD
 
     enum class MouseButtonState : uint8_t
     {
-        None   = 0,
-        Left   = 1 << 0,
+        None = 0,
+        Left = 1 << 0,
         Middle = 1 << 1,
-        Right  = 1 << 2,
+        Right = 1 << 2,
     };
 
     enum class ModifierKey : uint8_t
     {
-        None  = 0,
+        None = 0,
         Shift = 1 << 0,
-        Ctrl  = 1 << 1,
-        Alt   = 1 << 2,
+        Ctrl = 1 << 1,
+        Alt = 1 << 2,
     };
 
     struct InputEvent
     {
-        InputEventType Type      = InputEventType::None;
-        MouseButton    Button    = MouseButton::None;
+        InputEventType Type = InputEventType::None;
+        MouseButton    Button = MouseButton::None;
         uint8_t        Modifiers = 0;                    // ModifierKey 位掩码
         uint8_t        MouseButtons = 0;
-       
-        int   MouseX     = 0;     // 客户区像素坐标
-        int   MouseY     = 0;
 
-		int   LastMouseX = 0;     // 上一次 MouseMove 的位置（用于 pan delta）
-		int   LastMouseY = 0;    
-
-        int   PressMouseX = 0;    // 鼠标按下时的位置（用于框选起点）
-        int   PressMouseY = 0;
+        int      MouseX = 0;          // 客户区像素坐标
+        int      MouseY = 0;
+                 
+        int      LastMouseX = 0;     // 上一次 MouseMove 的位置（用于 pan delta）
+        int      LastMouseY = 0;
+                 
+        int      PressMouseX = 0;    // 鼠标按下时的位置（用于框选起点）
+        int      PressMouseY = 0;
 
         float    WheelDelta = 0.f;
 
         uint32_t KeyCode = 0;
 
+        bool               HasSnap = false;  // 是否捕获
+        DirectX::XMFLOAT3  SnapWorld;        // 捕获点
+
         bool HasModifier(ModifierKey k) const
         {
             return (Modifiers & static_cast<uint8_t>(k)) != 0;
-        }  
+        }
 
         bool IsMouseButtonDown(MouseButton b) const
         {
@@ -71,5 +74,5 @@ namespace MiniCAD
                 return false;
             }
         }
-    };  
+    };
 }
