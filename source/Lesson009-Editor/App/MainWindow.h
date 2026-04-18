@@ -1,13 +1,11 @@
-#pragma once 
-#include <windows.h>
-#include <memory>  
+#pragma once  
+#include "pch.h"
 #include "Render/D3D11/Device.h"
 #include "Render/D3D11/SwapChain.h"
 #include "Render/D3D11/Renderer.h"
+#include "Render/Viewport/Viewport.h"
 #include "Input/InputSystem.h"
 #include "Editor/Editor.h"
-#include "Scene/Scene.h"
-#include "CommandStack/CommandStack.h"
 namespace MiniCAD
 {
 	class MainWindow
@@ -37,12 +35,14 @@ namespace MiniCAD
 		std::unique_ptr<Device>       m_device;
 		std::unique_ptr<SwapChain>    m_swapChain;
 		std::unique_ptr<Renderer>     m_renderer;
+		//  
+		std::unique_ptr<Viewport>     m_viewport; 
 
-		// ── 应用层 ────────────────────────────────────────────
-		InputSystem                   m_input;
-		std::unique_ptr<Scene>        m_scene;
-		std::unique_ptr<CommandStack> m_commandStack; 
-		std::unique_ptr<Editor>       m_editor;
 		 
+		// ── 调试Editor Scene CommandStack m_inputSystem ─────
+		std::unique_ptr<Editor>       m_editor;
+		std::unique_ptr<Scene>        m_scene;
+		std::unique_ptr<CommandStack> m_cmdStack;
+		InputSystem                   m_inputSystem;
 	};
 }

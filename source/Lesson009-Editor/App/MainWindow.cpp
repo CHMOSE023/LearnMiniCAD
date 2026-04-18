@@ -17,14 +17,13 @@ namespace MiniCAD
 		InitWindow(title,width,height);
 
 		InitD3D11(width, height);
- 
-		// 创建场景和编辑器
-		m_scene        = std::make_unique<Scene>();
-		m_commandStack = std::make_unique<CommandStack>();
-		m_editor       = std::make_unique<Editor>(m_scene.get(), m_commandStack.get());
+		 
+		m_scene    = std::make_unique<Scene>();
+		m_cmdStack = std::make_unique<CommandStack>();
 
-		// 注册输入处理器
-		m_input.PushHandler(m_editor.get()); 
+		m_editor = std::make_unique<Editor>(m_scene.get(), m_cmdStack.get());
+
+		m_inputSystem.PushHandler(m_editor.get());
 
 		return true;
 	}
@@ -80,7 +79,7 @@ namespace MiniCAD
 
 		return DefWindowProcW(hwnd, msg, wParam, lParam); 
 	}
-
+	 
 	LRESULT MainWindow::EventProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{ 
 		switch (msg)
@@ -88,13 +87,14 @@ namespace MiniCAD
 		case WM_SIZE:
 		{
 			UINT w = LOWORD(lParam), h = HIWORD(lParam);
-			if (m_swapChain) m_swapChain->Resize(w, h); 
+			printf("WM_SIZE:%d,%d\n", w, h);
 			return 0;
 		}
+
 		// ───────────── 输入消息交给 InputSystem ─────────────
-		case WM_MBUTTONDOWN: 
+		case WM_MBUTTONDOWN:
 		case WM_MBUTTONUP:
-		case WM_MOUSEMOVE:		
+		case WM_MOUSEMOVE:
 		case WM_LBUTTONDOWN:
 		case WM_LBUTTONUP:
 		case WM_RBUTTONDOWN:
@@ -102,8 +102,9 @@ namespace MiniCAD
 		case WM_MOUSEWHEEL:
 		case WM_KEYDOWN:
 		case WM_KEYUP:
-			m_input.Dispatch(hwnd, msg, wParam, lParam);
-			return 0; 
+			m_inputSystem.Dispatch(hwnd, msg, wParam, lParam);
+			return 0;
+
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			return 0;
@@ -185,31 +186,18 @@ namespace MiniCAD
 		m_swapChain->Initialize(m_device.get(), m_hwnd, width, height, opt);// 初始化交换链
 		m_renderer = std::make_unique<Renderer>(m_device->GetDevice(), m_device->GetContext());
 
+		m_viewport = std::make_unique<Viewport>(m_renderer.get(), width, height);
+
 		return true;
 	}
 
 	void MainWindow::RenderFrame()
 	{
 		auto target = m_swapChain->GetRenderTarget(); 
-
-		m_renderer->Begin(target, XMMatrixIdentity());
+ 
 		 
-		// 绘制一个三角形
-		Vertex_P3_C4 tri[6] =
-		{
-			{{ 0.0f,  0.5f, 0.0f}, {1,0,0,1}},  // 顶部 红
-			{{ 0.5f, -0.5f, 0.0f}, {0,1,0,1}},  // 右下 绿
-
-			{{-0.5f, -0.5f, 0.0f}, {0,0,1,1}},  // 左下 蓝
-			{{ 0.0f,  0.5f, 0.0f}, {1,0,0,1}},  // 顶部 红
-
-		    {{ 0.5f, -0.5f, 0.0f}, {0,1,0,1}},  // 右下 绿
-			{{-0.5f, -0.5f, 0.0f}, {0,0,1,1}},  // 左下 蓝
-
-		};
-		 
-		m_renderer->DrawLine({ tri[0], tri[1], tri[2], tri[3], tri[4], tri[5] }); 
-		m_renderer->End();
+		m_viewport->Render(target);
+	 
 
 		m_swapChain->Present();
 

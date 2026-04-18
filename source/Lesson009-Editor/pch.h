@@ -1,5 +1,4 @@
-#pragma once
-
+#pragma once 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
@@ -10,16 +9,14 @@
 #include <DirectXMath.h>
 #include <DirectXColors.h>
 #include <wrl/client.h>
-#include <dxgi1_3.h> 
+#include <dxgi1_3.h>
+#include <dxgi1_6.h>
 #include <d3d11.h> 
 #include <vector>
 #include <memory>
 #include <stdexcept>
 #include <cstdio>
-
-#undef min
-#undef max
-
+#include <algorithm>
 #ifndef ThrowIfFailed
 inline void ThrowIfFailed(HRESULT hr)
 {
