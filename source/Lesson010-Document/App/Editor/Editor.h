@@ -4,7 +4,7 @@
 #include "App/CommandStack/CommandStack.h"
 namespace MiniCAD
 {
-	class Editor :public IInputHandler
+	class Editor //:public IInputHandler
 	{
 	public:
 		Editor(Scene& scene, CommandStack& cmdStack);
