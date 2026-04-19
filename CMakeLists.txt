@@ -8,9 +8,7 @@ if(MSVC)
     add_definitions("-DUNICODE" "-D_UNICODE")                                   # Windows API 使用宽字符版本
     add_compile_options(/utf-8)                                                 # 源文件按 UTF-8 解析
 endif()
-
-find_package(directxtk CONFIG REQUIRED)
-
+    
 add_library(imgui
     thirdParty/imgui/imgui.cpp
     thirdParty/imgui/imgui_draw.cpp
@@ -40,8 +38,8 @@ foreach(LESSON_NAME ${LESSON_NAMES})                                            
    
         target_include_directories(${LESSON_NAME} PRIVATE "${LESSON_DIR}/")     # 3.4 课程私有头文件目录
 
-        target_link_libraries(${LESSON_NAME} PRIVATE                            # 3.5 链接所需库
-            Microsoft::DirectXTK d3d11 dxgi d3dcompiler  imgui
+        target_link_libraries(${LESSON_NAME} PRIVATE                            # 3.5 链接所需库 
+            d3d11 dxgi d3dcompiler  imgui
         ) 
 
         set_target_properties(${LESSON_NAME} PROPERTIES                         # 3.6 可执行文件输出目录
