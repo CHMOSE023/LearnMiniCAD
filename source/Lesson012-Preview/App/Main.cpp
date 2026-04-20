@@ -1,5 +1,5 @@
+#include "pch.h"
 #include "MainWindow.h"
-
 using namespace MiniCAD;
 int main()
 {

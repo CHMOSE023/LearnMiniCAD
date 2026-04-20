@@ -1,34 +1,29 @@
-#pragma once   
+#pragma once
 #include "App/Input/IInputHandler.h" 
-#include "App/Input/InputEvent.h" 
-#include "App/Scene/Scene.h" 
+#include "App/Scene/Scene.h"
 #include "App/CommandStack/CommandStack.h" 
+#include "App/Tools/ITool.h"
+#include "App/Overlay/Overlay.h"
 #include "Render/Viewport/Viewport.h"
-#include <unordered_set> 
-#include <DirectXMath.h>
 #include <memory>
-#include <App/Tools/ITool.h>
-
 namespace MiniCAD
-{ 
-    class Editor : public IInputHandler
-    {
-    public:
-        Editor(Scene* scene, CommandStack* cmdStack); 
-        bool OnInput(const InputEvent& e) override;  
-        void OnResize(float width, float height);
-    private:
-        void OnMouseButtonDown(const InputEvent& e);
-        void OnMouseButtonUp  (const InputEvent& e);
-        void OnKeyDown        (const InputEvent& e);
-        void OnKeyUp          (const InputEvent& e);
-        void OnMouseMove      (const InputEvent& e);   
-        void OnMouseWheel     (const InputEvent& e);
-    private: 
-        Scene*        m_scene    = nullptr;      
-        CommandStack* m_cmdStack = nullptr; 
-        Viewport*     m_view     = nullptr;           
+{
+	class Editor  
+	{
+	public:
+		Editor(Scene& scene, CommandStack& cmdStack, Viewport& viewport, Overlay& overlay);
+		bool OnInput(const InputEvent& e);
 
-        std::unique_ptr<ITool>   m_tool;
-    };
+	private:
+		bool HandleGlobal(const InputEvent& e);
+		bool HandleDefault(const InputEvent& e);
+		void StartLineTool();
+	private:
+		Scene&        m_scene;            
+		CommandStack& m_cmdStack;		   
+		Viewport&     m_viewport;		   
+		Overlay&      m_overlay;
+
+		std::unique_ptr<ITool>   m_tool;
+	};
 }

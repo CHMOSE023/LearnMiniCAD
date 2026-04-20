@@ -104,18 +104,15 @@ namespace MiniCAD
 
     void  Camera::Pan(float dx, float dy)
     {
-        XMVECTOR target = XMLoadFloat3(&m_target); // 3D 向量
+        float worldWidth  = m_zoom * m_aspect;
+        float worldHeight = m_zoom;
 
-        float viewHeight = m_zoom;
-        float viewWidth = m_zoom * m_aspect;
+        // 屏幕像素映射到世界坐标
+        float offsetX = -dx / m_screenWidth * worldWidth;
+        float offsetY = dy / m_screenHeight * worldHeight;
 
-        float worldPerPixelX = viewWidth / m_screenWidth;
-        float worldPerPixelY = viewHeight / m_screenHeight;
-
-        XMVECTOR delta = XMVectorSet(-dx * worldPerPixelX, dy * worldPerPixelY, 0.f, 0.f);
-        target = XMVectorAdd(target, delta);
-
-        XMStoreFloat3(&m_target, target);
+        m_target.x += offsetX;
+        m_target.y += offsetY;
     }
 
     void  Camera::Zoom(float delta, int mouseX, int mouseY)
@@ -128,7 +125,7 @@ namespace MiniCAD
         if (delta > 0) m_zoom /= zoomFactor;
         else           m_zoom *= zoomFactor;
 
-        m_zoom = std::max(0.1f, std::min(m_zoom, 100.0f));
+        m_zoom = std::max(0.1f, std::min(m_zoom, 1000.0f));
 
         // 3. 缩放后调整目标，使鼠标位置固定
         XMFLOAT3 worldAfter = ScreenToWorld(mouseX, mouseY);
