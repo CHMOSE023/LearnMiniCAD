@@ -2,10 +2,9 @@
 #include "ICommand.h"
 #include "App/Scene/Scene.h"
 
-namespace MiniCAD 
+namespace MiniCAD
 {
-
-    void CommandStack::Execute(std::unique_ptr<ICommand> cmd, Scene& scene) 
+    void CommandStack::Execute(std::unique_ptr<ICommand> cmd, Scene& scene)
     {
         cmd->Execute(scene);
         m_undoStack.push(std::move(cmd));
@@ -22,7 +21,7 @@ namespace MiniCAD
         m_redoStack.push(std::move(cmd));
     }
 
-    void CommandStack::Redo(Scene& scene) 
+    void CommandStack::Redo(Scene& scene)
     {
         if (!CanRedo()) return;
         auto cmd = std::move(m_redoStack.top());
@@ -31,10 +30,9 @@ namespace MiniCAD
         m_undoStack.push(std::move(cmd));
     }
 
-    void CommandStack::Clear() 
+    void CommandStack::Clear()
     {
         while (!m_undoStack.empty()) m_undoStack.pop();
         while (!m_redoStack.empty()) m_redoStack.pop();
     }
-
-} 
+}

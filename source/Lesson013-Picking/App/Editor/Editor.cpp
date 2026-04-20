@@ -1,143 +1,105 @@
 #include "Editor.h"
-#include "App/Scene/Scene.h"
-#include "App/CommandStack/CommandStack.h"  
-#include "App/Input/InputEvent.h" 
-#include <App/Tools/LineTool.h>
-
+#include "App/Tools/LineTool.h"
+#include "App/CommandStack/CommandStack.h"
+#include "App/Scene/Scene.h" 
+#include "App/Overlay/Overlay.h"
+#include "Render/Viewport/Viewport.h"
+#include <memory>
 namespace MiniCAD
 {
-    Editor::Editor(Scene* scene, CommandStack* cmdStack)
-        : m_scene(scene)
-        , m_cmdStack(cmdStack)
-		, m_picking(scene)
-    {
-    }
+	Editor::Editor(Scene& scene, CommandStack& cmdStack, Viewport& viewport, Overlay& overlay)
+		: m_scene(scene)
+		, m_cmdStack(cmdStack)
+		, m_viewport(viewport)
+        , m_overlay(overlay)
+        , m_picking(scene, viewport)
+	{ 
+	}
 
-    /// <summary>
-    /// 责任链模式，消息处理有优先级
-    /// </summary> 
-    bool Editor::OnInput(const InputEvent& e)
-    { 
-        // 1️ 全局按键优先处理
-        if (e.Type == InputEventType::KeyDown && e.KeyCode == VK_ESCAPE)
+	bool Editor::OnInput(const InputEvent& e)
+	{ 
+		// 1. 全局
+		if (HandleGlobal(e)) return true;
+         
+		// 2. Tool
+        if (m_tool)
         { 
+            return m_tool->OnInput(e);  // Tool 激活 → 完全屏蔽 Picking
+        }
+
+        // 3. Picking（选择系统）
+        if (m_picking.OnInput(e)) return true;
+
+		// 4. 默认
+		return HandleDefault(e);
+
+	}
+
+   
+    bool Editor::HandleGlobal(const InputEvent& e)
+    { 
+
+        if (e.IsUndo())  // Ctrl + Z  撤销
+        {
+            m_cmdStack.Undo(m_scene);
+            return true;
+        }
+
+        if (e.IsRedo())  // Ctrl + Z 重做
+        {
+            m_cmdStack.Redo(m_scene);
+            return true;
+
+        }
+
+        if (e.IsCancel()) // 取消
+        {
             if (m_tool)
             {
                 m_tool->Cancel();
                 m_tool.reset();
-                printf("[Editor] ESC exit tool\n");
-                return true;
             }
+            return true;
         }
 
-        // 2️ 工具处理
-        if (m_tool)
+        if (e.IsStartLineTool()) // 绘制直线
         {
-            switch (e.Type)
-            {
-            case InputEventType::MouseButtonDown: m_tool->OnMouseDown(e); return true;
-            case InputEventType::MouseButtonUp:   m_tool->OnMouseUp(e);   return true;
-            case InputEventType::MouseMove:       m_tool->OnMouseMove(e); OnMouseMove(e); return true; 
-            case InputEventType::KeyDown:         m_tool->OnKeyDown(e);   return true;
-            case InputEventType::MouseWheel:      OnMouseWheel(e);        return true;
-            default: return false;
-            } 
+            StartLineTool();
+            return true;
         }
 
-        // 3️ 默认 Editor 自己处理
         switch (e.Type)
         {
-        case InputEventType::MouseButtonDown: OnMouseButtonDown(e); return true;
-        case InputEventType::MouseButtonUp:   OnMouseButtonUp(e);   return true;
-        case InputEventType::MouseWheel:      OnMouseWheel(e);      return true;
-        case InputEventType::MouseMove:       OnMouseMove(e);       return true;
-        case InputEventType::KeyDown:         OnKeyDown(e);         return true;
-        default:
-            return false;
-        } 
+        case InputEventType::MouseMove:
+            if (e.IsMouseButtonDown(MouseButton::Middle))
+            {
+                m_viewport.Pan(e.MouseX - e.LastMouseX, e.MouseY - e.LastMouseY);
+                return true;
+            }
+            break;
+
+        case InputEventType::MouseWheel:
+            m_viewport.Zoom(e.WheelDelta, e.MouseX, e.MouseY);
+            return true;
+        }
+
         return false;
     }
 
-    void Editor::OnResize(float width, float height)
-    {
-        m_scene->GetCamera()->Resize(width, height);
+    bool Editor::HandleDefault(const InputEvent& e)
+    {   
+        return false;
     }
 
-    const std::unordered_set<Object::ObjectID>& Editor::GetSelection()
-    {
-		return m_picking.GetSelection();
-    }
-    
-    const std::unordered_set<Object::ObjectID>& Editor::GetHovered()
-    {
-        return m_picking.GetHovered();
-    }
+	void Editor::StartLineTool()
+	{
+		if (m_tool)
+			m_tool->Cancel(); // 自动退出旧工具
+
+        m_tool = std::make_unique<LineTool>(m_scene, m_cmdStack, m_viewport, m_overlay);
+		m_tool->OnFinished = [this]() {m_tool.reset(); }; // 内部结束绘制
+		printf("[Editor] Start LineTool\n");
+	}
 
 
-    void Editor::OnKeyDown(const InputEvent& e)
-    {  
-        if (e.KeyCode == 'L')
-        { 
-            m_tool = std::make_unique<LineTool>(m_scene, m_cmdStack);
-            return;
-        }
-
-        // Ctrl+Z：Undo
-        if (e.HasModifier(ModifierKey::Ctrl) && e.KeyCode == 'Z')
-        {
-            m_cmdStack->Undo(*m_scene); 
-            return;
-        } 
-        // Ctrl+Y：Redo
-        if (e.HasModifier(ModifierKey::Ctrl) && e.KeyCode == 'Y')
-        {
-            m_cmdStack->Redo(*m_scene); 
-            return;
-        } 
-		
-        // 释放命令
-        if (m_tool&& e.KeyCode == VK_ESCAPE)
-        {
-            m_tool->Cancel();
-            m_tool.reset();
-            printf("[Editor] ESC exit tool\n");
-            return ;
-        }
-    }
-
-    void Editor::OnKeyUp(const InputEvent& e)
-    {
-    }
-
-    void Editor::OnMouseButtonUp(const InputEvent& e)
-    {
-        m_picking.OnMouseUp(e);
-    }
-
-    void Editor::OnMouseButtonDown(const InputEvent& e)
-    {
-        m_picking.OnMouseDown(e); 
-
-       // auto world =  m_scene->GetCamera()->ScreenToWorld(e.MouseX,e.MouseY);
-       // XMFLOAT2 screen = m_scene->GetCamera()->WorldToScreen(world);
-	   // printf("[Editor] MouseDown at screen (%0.2f, %0.2f), world (%.2f, %.2f)\n", screen.x, screen.y, world.x, world.y);
-
-    }
-    void Editor::OnMouseMove(const InputEvent& e)
-    { 
-        if (e.IsMouseButtonDown(MouseButton::Middle))
-        { 
-            m_scene->GetCamera()->Pan(e.MouseX - e.LastMouseX, e.MouseY - e.LastMouseY);
-        }
-		
-        m_picking.OnMouseMove(e);
-    }
-
-	// 鼠标滚轮：缩放
-    void Editor::OnMouseWheel(const InputEvent& e)
-    {
-		m_scene->GetCamera()->Zoom(e.WheelDelta, e.MouseX, e.MouseY);
-    }
-     
-   
 }
