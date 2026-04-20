@@ -41,18 +41,23 @@ namespace MiniCAD
 
         LayerManager&       GetLayerManager()       { return m_scene.GetLayerManager(); }
         const LayerManager& GetLayerManager() const { return m_scene.GetLayerManager(); }
-
-
+		 
+		 
 		// ── Undo / Redo ───────────────────────────────────────
 		void Undo() { m_cmdStack.Undo(m_scene); }
 		void Redo() { m_cmdStack.Redo(m_scene); }
 		bool CanUndo() const { return m_cmdStack.CanUndo(); }
 		bool CanRedo() const { return m_cmdStack.CanRedo(); }
+	private:
+		void UpdateSceneVerties(); // 更新屏幕渲染数据
 
 	private:
 		Editor         m_editor;
 		Scene          m_scene; 
 		CommandStack   m_cmdStack;
 		Viewport       m_viewport;
+	 
+	private: 
+		std::vector<Vertex_P3_C4> m_sceneVertices; // 场景数据 
 	};
 }

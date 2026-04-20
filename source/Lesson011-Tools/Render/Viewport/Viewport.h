@@ -9,8 +9,7 @@ namespace MiniCAD
     public:
         Viewport(Renderer& renderer, float width, float height);
 
-        void Render(const RenderTarget& target);
-
+        void Render(const RenderTarget& target, const std::vector<Vertex_P3_C4>& sceneVertices);
         void Resize(float width, float height);
 
         Camera&        GetCamera();
@@ -21,10 +20,9 @@ namespace MiniCAD
         void Zoom(float delta, float mouseX, float mouseY);
     private:
         Camera       m_camera;
-        Renderer&    m_renderer; 
-
+        Renderer&    m_renderer;  
         std::vector<Vertex_P3_C4> m_vertices;
-        std::vector<Vertex_P3_C4> m_vertices1;
+        std::vector<Vertex_P3_C4> m_vertices1; 
     };
 	
 }

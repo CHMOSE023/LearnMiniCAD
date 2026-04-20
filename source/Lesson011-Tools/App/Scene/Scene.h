@@ -1,7 +1,6 @@
 #pragma once
 #include "Core/Object/Object.hpp"
-#include "Core/Entity/LineEntity.hpp"  
-#include "Extraction/ISceneReader.h"
+#include "Core/Entity/LineEntity.hpp" 
 #include "App/Scene/LayerManager.h"
 #include "Render/Viewport/Camera.h"
 #include <vector>
@@ -11,8 +10,7 @@
 #include <atomic>
 namespace MiniCAD
 {
-	class ISerializer;
-	class Scene :public ISceneReader
+	class Scene 
 	{
 	public:
 
@@ -27,27 +25,27 @@ namespace MiniCAD
 		void AddPreviewEntity(std::unique_ptr<Object> entity);// 添加预览实体 	
 		void ClearPreviews();
 
-		Object* GetEntity(ObjectID id);                     // 通过ID查询
-		virtual const Object* GetEntity(ObjectID id) const override;
+		Object* GetEntity(ObjectID id);                       // 通过ID查询
+		const Object* GetEntity(ObjectID id) const ;
 
-		virtual bool Has(ObjectID id) const override;
+		bool Has(ObjectID id) const ;
 
-		std::vector<ObjectID> GetAllIDs() const;            // 返回所有实体 ID
+		std::vector<ObjectID> GetAllIDs() const;             // 返回所有实体 ID
 
 		LayerManager& GetLayerManager() { return m_layerManager; }
-		virtual const LayerManager& GetLayerManager() const override { return m_layerManager; }
+		const LayerManager& GetLayerManager() const  { return m_layerManager; }
 
-		virtual void  ForEachObject(std::function<void(const Object&)> fn) const;  // 遍历所有实体（核心接口，供 ISceneReader 实现）  
-		virtual void  ForEachPreview(std::function<void(const Object&)> fn) const; // 遍历所有预览对象（核心接口，供 ISceneReader 实现）
+		void  ForEachObject(std::function<void(const Object&)> fn) const;  // 遍历所有实体（核心接口，供 ISceneReader 实现）  
+		void  ForEachPreview(std::function<void(const Object&)> fn) const; // 遍历所有预览对象（核心接口，供 ISceneReader 实现）
 
 		// ── DirtyFlag ── 
-		virtual bool IsDirty() const override { return m_dirty; }
+		bool IsDirty() const  { return m_dirty; }
 		void MarkDirty() { m_dirty = true; if (m_onDirty) m_onDirty(); }
 		void ClearDirty() { m_dirty = false; }
 
 		void SetDirtyCallback(DirtyCallback cb) { m_onDirty = std::move(cb); }
 
-		virtual int EntityCount() const override { return (int)m_entities.size(); }
+		int EntityCount() const  { return (int)m_entities.size(); }
 
 		
 

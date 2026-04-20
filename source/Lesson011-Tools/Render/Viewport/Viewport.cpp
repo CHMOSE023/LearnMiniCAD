@@ -62,28 +62,22 @@ namespace MiniCAD
 
     }
      
-    void Viewport::Render(const RenderTarget& target)
-    {
-        
-         
+    void Viewport::Render(const RenderTarget& target, const std::vector<Vertex_P3_C4>& sceneVertices)
+    {  
         XMMATRIX vp = m_camera.GetViewProj();
          
         m_renderer.Begin(target); 
          
-        m_renderer.DrawLine(m_vertices, vp);
+        m_renderer.DrawLine(sceneVertices, vp);      // 测试线2
 
-        XMMATRIX screenVP = XMMatrixOrthographicOffCenterLH(
-            0.0f, target.viewport.Width,
-            target.viewport.Height, 0.0f,
-            0.0f, 1.0f
-        );
+        m_renderer.DrawLine(m_vertices, vp);       // 测试线1
 
-
-        m_renderer.DrawLine(m_vertices1, vp);
-         
+        m_renderer.DrawLine(m_vertices1, vp);      // 测试线2
+          
         m_renderer.End();
     }
 
+    
     void Viewport::Resize(float width, float height)
     {
 		m_camera.Resize(width, height);
