@@ -25,21 +25,6 @@ git clone https://github.com/CHMOSE023/LearnMiniCAD
 
 **用 Visual Studio 2022 及以上版本打开**  `CMakeLists.txt`。
   
-## vcpkg 安装依赖
-
-- 获取 vcpkg 包管理器
-
-```bash
-git clone https://github.com/microsoft/vcpkg.git
-cd vcpkg
-bootstrap-vcpkg.bat
-```
-
-- 安装 DirectXTK 库
-
-```bash
-vcpkg install directxtk:x64-windows
-```
 
 ## 工程目录
 
@@ -57,7 +42,7 @@ LearnMiniCAD/
 │   ├── Lesson08-CommandStack      # 教程 08: 命令堆栈
 │   ├── Lesson09-Editor/           # 教程 09: 交互控制器
 │   ├── Lesson10-Document/         # 教程 10: 文档
-│   ├── Lesson11-Command/          # 教程 11: 实现添加、删除命令，支持撤销重做
+│   ├── Lesson11-Tools/            # 教程 11: 使用工具绘制线、支持撤销重做
 │   ├── Lesson12-Preview/          # 教程 12: 实时绘制预览
 │   ├── Lesson13-Picking/          # 教程 13: 实时选择实体
 │   ├── Lesson14-ViewState/        # 教程 14: Viewport中的视图状态
