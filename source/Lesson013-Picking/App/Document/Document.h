@@ -5,8 +5,10 @@
 #include "App/Input/IInputHandler.h" 
 #include "App/Input/InputEvent.h"
 #include "App/Overlay/Overlay.h"
+#include "App/Picking/Picking.h"
 #include "Render/Viewport/Viewport.h"  
 #include "Render/D3D11/Renderer.h" 
+#include "Render/D3D11/RenderTarget.h"
 #include "Core/Object/Object.hpp"
 #include <unordered_set>
 #include <string>
@@ -50,16 +52,17 @@ namespace MiniCAD
 		bool CanUndo() const { return m_cmdStack.CanUndo(); }
 		bool CanRedo() const { return m_cmdStack.CanRedo(); }
 	private:
-		void UpdateSceneVerties(); // 更新屏幕渲染数据  
+		void UpdateSceneVerties(); // 更新屏幕渲染数据   
 
 	private:
 		Editor         m_editor;
 		Scene          m_scene; 
 		CommandStack   m_cmdStack;
 		Viewport       m_viewport;
-		Overlay        m_overlay;
-	 
+		Overlay        m_overlay; 
+		Picking        m_picking;
 	private: 
 		std::vector<Vertex_P3_C4> m_sceneVertices; // 场景数据 
+		std::vector<Vertex_P3_C4> m_overlayVertices;
 	};
 }

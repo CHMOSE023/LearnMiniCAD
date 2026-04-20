@@ -1,4 +1,10 @@
-#include "Document.h"   
+#include "Document.h"    
+#include "Render/D3D11/Renderer.h"
+#include "Core/Entity/LineEntity.hpp"
+#include "Core/Object/Object.hpp"
+#include <vector> 
+#include <memory>
+#include <utility>
 namespace MiniCAD
 {
     Document::Document(Renderer& render, float width, float height)
@@ -6,8 +12,10 @@ namespace MiniCAD
         , m_cmdStack()
         , m_overlay()
         , m_viewport(render, width, height)
-        , m_editor(m_scene, m_cmdStack, m_viewport, m_overlay)
+        , m_picking(m_scene, m_viewport)
+        , m_editor(m_scene, m_cmdStack, m_viewport, m_overlay,m_picking)
     {
+      
     }
 
     bool Document::OnInput(const InputEvent& e)
@@ -22,40 +30,75 @@ namespace MiniCAD
 
     void Document::Render(const RenderTarget& target)
     { 
+        m_overlayVertices.clear();
+
         UpdateSceneVerties();
-          
-        std::vector<Vertex_P3_C4> overlayVertices;
+           
+        m_overlay.ToVertices(m_overlayVertices); // 每帧分配
 
-        m_overlay.ToVertices(overlayVertices); // 每帧分配
+        auto hoverIds     = m_picking.GetHovered();      // 获取悬浮 ids
+        auto selectionIds = m_picking.GetSelection(); // 获取选中 ids
 
-        m_viewport.Render(target, m_sceneVertices, overlayVertices);
+        //  悬浮或选中的在overlayVertices设置颜色  
+
+        m_viewport.Render(target, m_sceneVertices, m_overlayVertices);
          
     } 
      
+
     void Document::UpdateSceneVerties()
-    {
-        if (m_scene.IsDirty()) // 如果场景数据发送变换 则更新数据
-        {
-            m_sceneVertices.clear();
+    { 
+        if (!m_scene.IsDirty() && !m_picking.IsDirty())
+            return;
 
-            m_scene.ForEachObject([&](const Object& obj)
+
+        m_sceneVertices.clear();
+        m_overlay.Clear();  
+
+        const auto& hoverIds     = m_picking.GetHovered();
+        const auto& selectionIds = m_picking.GetSelection();
+
+        const DirectX::XMFLOAT4 hoverColor     = { 0,  0.5, 0.8, 0.9 };
+        const DirectX::XMFLOAT4 selectionColor = { 0,  0.3, 0.8, 0.9 };
+
+        m_scene.ForEachObject([&](const Object& obj)
+            {
+                if (!obj.IsKindOf<LineEntity>())
+                    return;
+
+                const auto& line = static_cast<const LineEntity&>(obj);
+                const auto& attr = line.GetAttr();
+                const auto& geom = line.GetLine();
+
+                const auto id = obj.GetID();
+
+                const bool isSelected = selectionIds.contains(id);
+                const bool isHovered = hoverIds.contains(id);
+
+                // ===== Base：只画普通 =====
+                if (!isSelected && !isHovered)
                 {
-                    if (obj.IsKindOf<LineEntity>())
-                    { 
-                        const auto& line  = static_cast<const LineEntity&>(obj); 
-                        const auto& color = line.GetAttr().Color;
-                        const auto& start = line.GetLine().Start;
-                        const auto& end   = line.GetLine().End;
+                    m_sceneVertices.push_back({ geom.Start, attr.Color });
+                    m_sceneVertices.push_back({ geom.End,   attr.Color });
+                }
 
-                        m_sceneVertices.push_back({ start, color });
-                        m_sceneVertices.push_back({ end,   color });
-                    } 
+                // ===== Overlay：画高亮 =====
+                if (isSelected)
+                {
+                    auto line = std::make_unique<LineEntity>(id, geom.Start, geom.End); 
+                    line->GetAttr().Color = selectionColor;
+                    m_overlay.Add(std::move(line));
+                }
+                else if (isHovered)
+                {
+                    auto line = std::make_unique<LineEntity>(id, geom.Start, geom.End);
+                    line->GetAttr().Color = hoverColor;
+                    m_overlay.Add(std::move(line));
+                }
+            });
 
-                });
-
-            m_scene.ClearDirty();// 清空创建  
-        } 
-
+        m_scene.ClearDirty();
+        m_picking.ClearDirty(); 
     }
-    
+ 
 }

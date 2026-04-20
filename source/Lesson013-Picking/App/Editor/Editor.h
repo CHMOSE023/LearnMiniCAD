@@ -13,7 +13,7 @@ namespace MiniCAD
 	class Editor  
 	{
 	public:
-		Editor(Scene& scene, CommandStack& cmdStack, Viewport& viewport, Overlay& overlay);
+		Editor(Scene& scene, CommandStack& cmdStack, Viewport& viewport, Overlay& overlay, Picking& picking);
 		bool OnInput(const InputEvent& e);
 
 		// Picking 获取选择 
@@ -29,8 +29,7 @@ namespace MiniCAD
 		CommandStack& m_cmdStack;		   
 		Viewport&     m_viewport;		   
 		Overlay&      m_overlay;
-
-		Picking       m_picking;
+		Picking&      m_picking;
 
 		std::unique_ptr<ITool>   m_tool;
 	};

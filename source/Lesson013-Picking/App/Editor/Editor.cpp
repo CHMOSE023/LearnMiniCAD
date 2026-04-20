@@ -3,16 +3,17 @@
 #include "App/CommandStack/CommandStack.h"
 #include "App/Scene/Scene.h" 
 #include "App/Overlay/Overlay.h"
+#include "App/Picking/Picking.h"
 #include "Render/Viewport/Viewport.h"
 #include <memory>
 namespace MiniCAD
 {
-	Editor::Editor(Scene& scene, CommandStack& cmdStack, Viewport& viewport, Overlay& overlay)
+    Editor::Editor(Scene& scene, CommandStack& cmdStack, Viewport& viewport, Overlay& overlay, Picking& picking)
 		: m_scene(scene)
 		, m_cmdStack(cmdStack)
 		, m_viewport(viewport)
         , m_overlay(overlay)
-        , m_picking(scene, viewport)
+        , m_picking(picking)
 	{ 
 	}
 
