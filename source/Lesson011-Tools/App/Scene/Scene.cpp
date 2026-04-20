@@ -8,17 +8,7 @@ namespace MiniCAD
 		ObjectID id = entity->GetID();
 		m_entities[id] = std::move(entity);
 		MarkDirty();
-	}
-
-	void Scene::AddPreviewEntity(std::unique_ptr<Object> entity)
-	{
-		m_previews.push_back(std::move(entity));
-	}
-
-	void Scene::ClearPreviews()
-	{
-		m_previews.clear();
-	}
+	} 
 
 	std::unique_ptr<Object> Scene::RemoveEntity(ObjectID id)
 	{
@@ -65,15 +55,7 @@ namespace MiniCAD
 		{
 			fn(*obj);
 		}
-	}
-
-	void Scene::ForEachPreview(std::function<void(const Object&)> fn) const
-	{
-		for (const auto& obj : m_previews)
-		{
-			fn(*obj);
-		}
-	}
+	} 
 
 	void Scene::SyncNextObjectID()
 	{

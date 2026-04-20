@@ -29,13 +29,20 @@ namespace MiniCAD
    
     bool Editor::HandleGlobal(const InputEvent& e)
     { 
-        if (e.IsUndo())
+        if (e.IsUndo())  // Ctrl + Z  撤销
         {
             m_cmdStack.Undo(m_scene);
             return true;
         }
 
-        if (e.IsCancel())
+        if (e.IsRedo())  // Ctrl + Z 重做
+        {
+            m_cmdStack.Redo(m_scene);
+            return true;
+
+        }
+
+        if (e.IsCancel()) // 取消
         {
             if (m_tool)
             {
@@ -45,7 +52,7 @@ namespace MiniCAD
             return true;
         }
 
-        if (e.IsStartLineTool())
+        if (e.IsStartLineTool()) // 绘制直线
         {
             StartLineTool();
             return true;
@@ -56,8 +63,7 @@ namespace MiniCAD
         case InputEventType::MouseMove:
             if (e.IsMouseButtonDown(MouseButton::Middle))
             {
-                m_viewport.Pan(e.MouseX - e.LastMouseX,
-                    e.MouseY - e.LastMouseY);
+                m_viewport.Pan(e.MouseX - e.LastMouseX, e.MouseY - e.LastMouseY);
                 return true;
             }
             break;

@@ -76,6 +76,7 @@ namespace MiniCAD
             auto line = std::make_unique<LineEntity>(id, a, b);
 
             auto cmd = std::make_unique<AddEntityCommand>(std::move(line));
+
             m_cmdStack.Execute(std::move(cmd), m_scene);
 
             printf("提交线 (%.3f,%.3f) (%.3f,%.3f)\n", a.x, a.y, b.x, b.y);

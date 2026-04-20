@@ -20,10 +20,7 @@ namespace MiniCAD
 		Scene() = default;
 
 		void AddEntity(std::unique_ptr<Object> entity);       // 添加实体 	
-		std::unique_ptr<Object> RemoveEntity(ObjectID id); 	  // 移除并返回所有权（供 Undo 使用）
-
-		void AddPreviewEntity(std::unique_ptr<Object> entity);// 添加预览实体 	
-		void ClearPreviews();
+		std::unique_ptr<Object> RemoveEntity(ObjectID id); 	  // 移除并返回所有权（供 Undo 使用） 
 
 		Object* GetEntity(ObjectID id);                       // 通过ID查询
 		const Object* GetEntity(ObjectID id) const ;
@@ -35,8 +32,7 @@ namespace MiniCAD
 		LayerManager& GetLayerManager() { return m_layerManager; }
 		const LayerManager& GetLayerManager() const  { return m_layerManager; }
 
-		void  ForEachObject(std::function<void(const Object&)> fn) const;  // 遍历所有实体（核心接口，供 ISceneReader 实现）  
-		void  ForEachPreview(std::function<void(const Object&)> fn) const; // 遍历所有预览对象（核心接口，供 ISceneReader 实现）
+		void  ForEachObject(std::function<void(const Object&)> fn) const;  // 遍历所有实体 
 
 		// ── DirtyFlag ── 
 		bool IsDirty() const  { return m_dirty; }
@@ -60,9 +56,7 @@ namespace MiniCAD
 		void SyncNextObjectID();
 
 	private:
-		std::unordered_map<ObjectID, std::unique_ptr<Object>> m_entities;
-
-		std::vector<std::unique_ptr<Object>> m_previews; // 预览对象 ID 列表（保持顺序）
+		std::unordered_map<ObjectID, std::unique_ptr<Object>> m_entities; 
 
 		std::atomic<ObjectID>    m_nextObjectID{ 1 };    // 0 保留为 InvalidID
 
