@@ -30,7 +30,7 @@ namespace MiniCAD
     }
 
     // 判断两条线段是否相交（用于框选边界检测）
-    static bool SegmentIntersect(const XMFLOAT2& p1, const XMFLOAT2& p2,  const XMFLOAT2& q1, const XMFLOAT2& q2)
+    static bool SegmentIntersect(const XMFLOAT2& p1, const XMFLOAT2& p2, const XMFLOAT2& q1, const XMFLOAT2& q2)
     {
         auto cross = [](const XMFLOAT2& a, const XMFLOAT2& b, const XMFLOAT2& c)
             {
@@ -71,7 +71,8 @@ namespace MiniCAD
     Picking::Picking(Scene& scene, Viewport& viewport)
         : m_scene(scene)
         , m_viewport(viewport)
-    {}
+    {
+    }
 
     // ───────────────── 输入入口 ─────────────────
     // 输入分发入口（鼠标 / 键盘） 将事件路由到具体处理函数
@@ -167,10 +168,16 @@ namespace MiniCAD
         m_drag = DragState::Pressing;
         m_pressX = e.MouseX;
         m_pressY = e.MouseY;
+
+        m_currX = e.MouseX;
+        m_currY = e.MouseY;
     }
 
     void Picking::OnMouseMove(const InputEvent& e)
-    {
+    { 
+        m_currX = e.MouseX;
+        m_currY = e.MouseY;
+
         if (m_drag == DragState::Pressing)
         {
             int dx = e.MouseX - m_pressX;
@@ -308,17 +315,24 @@ namespace MiniCAD
             if (!b.contains(v)) return false;
         return true;
     }
+     
 
     // ───────────────── 辅助接口 ─────────────────
 
-    DirectX::XMFLOAT2 Picking::GetBoxPress() const
+    DirectX::XMFLOAT2 Picking::GetBoxStart() const
     {
         return { (float)m_pressX, (float)m_pressY };
+    }
+
+    DirectX::XMFLOAT2 Picking::GetBoxEnd() const
+    {
+        return { (float)m_currX, (float)m_currY };
     }
 
     bool Picking::IsBoxSelecting() const
     {
         return m_drag == DragState::BoxSelecting;
     }
+
 
 }

@@ -25,8 +25,10 @@ namespace MiniCAD
         // 状态访问
         const std::unordered_set<ObjectID>& GetSelection() const { return m_selection; }
         const std::unordered_set<ObjectID>& GetHovered()   const { return m_hovered; }
-
-        DirectX::XMFLOAT2 GetBoxPress()    const;
+        
+        // 选择范围框
+        DirectX::XMFLOAT2 GetBoxStart()    const;
+        DirectX::XMFLOAT2 GetBoxEnd()     const;
         bool              IsBoxSelecting() const;
 
         // Dirty
@@ -67,6 +69,9 @@ namespace MiniCAD
 
         int m_pressX = 0;
         int m_pressY = 0;
+        int m_currX  = 0;
+        int m_currY  = 0;
+
 
         bool m_dirty = false;
     };

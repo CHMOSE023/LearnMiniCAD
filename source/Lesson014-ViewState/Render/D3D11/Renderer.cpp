@@ -1,192 +1,143 @@
-#include "Renderer.h" 
+#include "Renderer.h"
 #include <d3dcompiler.h>
-#include <format>
-#include "ErrorReporter.h"
-using Microsoft::WRL::ComPtr;
+#include "Shader.h"
+#include "RenderTarget.h"
 
 namespace MiniCAD
 {
-    Renderer::Renderer(ID3D11Device* device, ID3D11DeviceContext* context) :
-        m_device(device),
-        m_context(context)
+    Renderer::Renderer(ID3D11Device* device, ID3D11DeviceContext* context)
+        : m_device(device), m_context(context)
     {
         Initialize();
         m_lineShader.Initialize(m_device);
-        m_gripShader.Initialize(m_device);
     }
 
-    void MiniCAD::Renderer::Initialize()
-    {  
-        // ==== 动态顶点缓冲（关键优化）====
-        D3D11_BUFFER_DESC vbDesc = {};
-        vbDesc.Usage = D3D11_USAGE_DYNAMIC;
-        vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-        vbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    void Renderer::Initialize()
+    {
+        // ===== VB =====
+        D3D11_BUFFER_DESC vb = {};
+        vb.ByteWidth = sizeof(Vertex_P3_C4) * m_maxVertices;
+        vb.Usage = D3D11_USAGE_DYNAMIC;
+        vb.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        vb.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        m_device->CreateBuffer(&vb, nullptr, m_vb.GetAddressOf());
 
-        vbDesc.ByteWidth = sizeof(Vertex_P3_C4) * m_maxVertices;
-        m_device->CreateBuffer(&vbDesc, nullptr, m_lineVB.GetAddressOf());  // Line 专用
+        // ===== CB =====
+        D3D11_BUFFER_DESC cb = {};
+        cb.ByteWidth = sizeof(XMMATRIX);
+        cb.Usage = D3D11_USAGE_DEFAULT;
+        cb.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        m_device->CreateBuffer(&cb, nullptr, m_cb.GetAddressOf());
 
-        vbDesc.ByteWidth = sizeof(Vertex_P3) * m_maxVertices;
-        m_device->CreateBuffer(&vbDesc, nullptr, m_gripVB.GetAddressOf());  // Grip 专用
+        // ===== Depth =====
+        D3D11_DEPTH_STENCIL_DESC d0 = {};
+        d0.DepthEnable = TRUE;
+        d0.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+        d0.DepthFunc = D3D11_COMPARISON_LESS;
+        m_device->CreateDepthStencilState(&d0, m_depthEnabled.GetAddressOf());
 
-        // ==== 常量缓冲 ====
-        D3D11_BUFFER_DESC cbDesc = {};
-        cbDesc.Usage     = D3D11_USAGE_DEFAULT;
-        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        D3D11_DEPTH_STENCIL_DESC d1 = {};
+        d1.DepthEnable = FALSE;
+        d1.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+        m_device->CreateDepthStencilState(&d1, m_depthDisabled.GetAddressOf());
 
-        // 常量 viewProj  
-        cbDesc.ByteWidth = sizeof(XMMATRIX);
-        m_device->CreateBuffer(&cbDesc, nullptr, m_viewProjCB.GetAddressOf());
+        // ⭐ 透明：只测不写
+        D3D11_DEPTH_STENCIL_DESC d2 = {};
+        d2.DepthEnable = TRUE;
+        d2.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+        d2.DepthFunc = D3D11_COMPARISON_LESS;
+        m_device->CreateDepthStencilState(&d2, m_depthReadOnly.GetAddressOf());
 
-        // 常量 color 
-        cbDesc.ByteWidth = sizeof(XMFLOAT4);
-        m_device->CreateBuffer(&cbDesc, nullptr, m_colorCB.GetAddressOf());
+        // ===== Rasterizer =====
+        D3D11_RASTERIZER_DESC rs = {};
+        rs.FillMode = D3D11_FILL_SOLID;
+        rs.CullMode = D3D11_CULL_NONE;
+        rs.DepthClipEnable = TRUE;
+        m_device->CreateRasterizerState(&rs, m_rsNoCull.GetAddressOf());
 
-        // ==== 深度状态 ====
-        // 深度测试启用 
-        D3D11_DEPTH_STENCIL_DESC depthEnableDesc = {};
+        // ===== Blend =====
+        D3D11_BLEND_DESC bd = {};
+        bd.RenderTarget[0].BlendEnable = TRUE;
 
-        depthEnableDesc.DepthEnable = TRUE;
-        depthEnableDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-        depthEnableDesc.DepthFunc = D3D11_COMPARISON_LESS;
+        bd.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+        bd.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+        bd.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
 
-        m_device->CreateDepthStencilState(&depthEnableDesc, m_depthStateEnabled.GetAddressOf());
+        bd.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+        bd.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+        bd.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 
-        // 深度测试禁用 
-        D3D11_DEPTH_STENCIL_DESC depthDisableDesc = {};
-        depthDisableDesc.DepthEnable = FALSE;
-        depthDisableDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-        m_device->CreateDepthStencilState(&depthDisableDesc, m_depthStateDisabled.GetAddressOf());
-         
+        bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
-        // ==== 混合状态（透明）====
-        D3D11_BLEND_DESC blendDesc = {};
-        blendDesc.RenderTarget[0].BlendEnable = TRUE;
-        blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-        blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-        blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-        blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-        blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-        blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-        blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-        m_device->CreateBlendState(&blendDesc, m_blendState.GetAddressOf());
-
+        m_device->CreateBlendState(&bd, m_blendAlpha.GetAddressOf());
     }
 
-    void Renderer::Begin(const RenderTarget& target)
+    void Renderer::BeginFrame(const RenderTarget& target)
     {
         target.Bind(m_context);
 
-        float clear[4] = { 0.1f, 0.1f, 0.15f, 1 }; // 窗口背景色
+        float clear[4] = { 0.1f, 0.1f, 0.15f, 1.0f };
         target.Clear(m_context, clear);
 
-        m_lineBuffer.clear();
-        m_gripBuffer.clear();
-    }
-
-
-    void Renderer::End()
-    {
-        FlushLine();
-        FlushGrip();
-    }
-
-    void Renderer::DrawLine(std::span<const Vertex_P3_C4> verts, const XMMATRIX & vp, bool depth)
-    {
-        XMMATRIX mat = XMMatrixTranspose(vp);
-
-        m_context->UpdateSubresource(m_viewProjCB.Get(), 0, nullptr, &mat, 0, 0);
-
         auto pso = m_lineShader.GetPipeline();
-
-        BindPipeline(pso);
-
-        SetDepthEnabled(depth);
-
-        m_lineBuffer.insert(m_lineBuffer.end(), verts.begin(), verts.end());
+        m_context->IASetInputLayout(pso.layout);
+        m_context->VSSetShader(pso.shader->vs.Get(), nullptr, 0);
+        m_context->PSSetShader(pso.shader->ps.Get(), nullptr, 0);
+        m_context->RSSetState(m_rsNoCull.Get());
     }
 
-    void Renderer::DrawGrip(std::span<const Vertex_P3> verts, XMFLOAT4 color, const XMMATRIX & vp, bool depth)
+    void Renderer::Submit(std::span<const Vertex_P3_C4> verts, const XMMATRIX& viewProj, PrimitiveType type, bool depth, bool blend)
     {
+        if (verts.empty()) return;
 
-        BindPipeline(m_gripShader.GetPipeline());
+        // ===== topology =====
+        m_context->IASetPrimitiveTopology(type == PrimitiveType::Line ? D3D11_PRIMITIVE_TOPOLOGY_LINELIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        XMMATRIX mat = XMMatrixTranspose(vp);
-        m_context->UpdateSubresource(m_viewProjCB.Get(), 0, nullptr, &mat, 0, 0);
-        m_context->UpdateSubresource(m_colorCB.Get(), 0, nullptr, &color, 0, 0);
+        // ===== depth =====
+        if (!depth)
+        {
+            m_context->OMSetDepthStencilState(m_depthDisabled.Get(), 0);
+        }
+        else if (blend)
+        {
+            m_context->OMSetDepthStencilState(m_depthReadOnly.Get(), 0); // 关键
+        }
+        else
+        {
+            m_context->OMSetDepthStencilState(m_depthEnabled.Get(), 0);
+        }
 
-        SetDepthEnabled(depth);
+        // ===== blend =====
+        if (blend)
+        {
+            float f[4] = { 0,0,0,0 };
+            m_context->OMSetBlendState(m_blendAlpha.Get(), f, 0xffffffff);
+        }
+        else
+        {
+            m_context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+        }
 
-        m_gripBuffer.insert(m_gripBuffer.end(), verts.begin(), verts.end());
-    }
-      
-    void MiniCAD::Renderer::FlushLine()
-    {
-        if (m_lineBuffer.empty()) return;
+        // ===== matrix =====
+        XMMATRIX vp = XMMatrixTranspose(viewProj);
+        m_context->UpdateSubresource(m_cb.Get(), 0, nullptr, &vp, 0, 0);
+        m_context->VSSetConstantBuffers(0, 1, m_cb.GetAddressOf());
 
+        // ===== upload =====
         D3D11_MAPPED_SUBRESOURCE mapped;
-        m_context->Map(m_lineVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-        memcpy(mapped.pData, m_lineBuffer.data(), sizeof(Vertex_P3_C4) * m_lineBuffer.size());
-        m_context->Unmap(m_lineVB.Get(), 0);
+        m_context->Map(m_vb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+        memcpy(mapped.pData, verts.data(), verts.size_bytes());
+        m_context->Unmap(m_vb.Get(), 0);
 
         UINT stride = sizeof(Vertex_P3_C4);
         UINT offset = 0;
+        m_context->IASetVertexBuffers(0, 1, m_vb.GetAddressOf(), &stride, &offset);
 
-        m_context->IASetVertexBuffers  (0, 1, m_lineVB.GetAddressOf(), &stride, &offset);     // 设置顶点
-        m_context->VSSetConstantBuffers(0, 1, m_viewProjCB.GetAddressOf());                   // 设置VP常量 投影矩阵
-
-        m_context->Draw((UINT)m_lineBuffer.size(), 0);
-
-        m_lineBuffer.clear();
-    }
-    
-    void MiniCAD::Renderer::FlushGrip()
-    {
-        if (m_gripBuffer.empty()) return;
-
-        float blendFactor[4] = { 0,0,0,0 };
-        m_context->OMSetBlendState(m_blendState.Get(), blendFactor, 0xffffffff);         // 开启透明混合
-
-        D3D11_MAPPED_SUBRESOURCE mapped;
-        m_context->Map(m_gripVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-
-        memcpy(mapped.pData, m_gripBuffer.data(), sizeof(Vertex_P3) * m_gripBuffer.size());
-        m_context->Unmap(m_gripVB.Get(), 0);
-
-        UINT stride = sizeof(Vertex_P3);
-        UINT offset = 0;
-        m_context->IASetVertexBuffers(0, 1, m_gripVB.GetAddressOf(), &stride, &offset);    // 设置顶点
-
-        m_context->VSSetConstantBuffers(0, 1, m_viewProjCB.GetAddressOf());                // 设置VP常量 投影矩阵
-        m_context->PSSetConstantBuffers(1, 1, m_colorCB.GetAddressOf());                   // 设置PS常量 颜色
-        m_context->Draw((UINT)m_gripBuffer.size(), 0);
-
-        m_context->OMSetBlendState(nullptr, blendFactor, 0xffffffff);                     // 关闭透明混合，恢复默认
-        m_gripBuffer.clear();
+        // ===== draw =====
+        m_context->Draw((UINT)verts.size(), 0);
     }
 
-    void MiniCAD::Renderer::BindPipeline(const PipelineState& pso)
+    void Renderer::EndFrame()
     {
-        if (m_currentPSO.shader != nullptr) // 避免初始状态下的无效 Flush
-        { 
-            if (m_currentPSO.topology == D3D11_PRIMITIVE_TOPOLOGY_LINELIST) // 切换前如果是 Line PSO，先提交 Line 缓冲区
-                FlushLine();
-            else
-                FlushGrip();
-        } 
-
-        m_currentPSO = pso;  
-        m_context->IASetInputLayout      (pso.layout);
-        m_context->VSSetShader           (pso.shader->vs.Get(), nullptr, 0);
-        m_context->PSSetShader           (pso.shader->ps.Get(), nullptr, 0); 
-        m_context->IASetPrimitiveTopology(pso.topology);
-    }
-
-    void Renderer::SetDepthEnabled(bool enabled)
-    {
-        if (enabled)
-            m_context->OMSetDepthStencilState(m_depthStateEnabled.Get(), 0);
-        else
-            m_context->OMSetDepthStencilState(m_depthStateDisabled.Get(), 0);
     }
 }

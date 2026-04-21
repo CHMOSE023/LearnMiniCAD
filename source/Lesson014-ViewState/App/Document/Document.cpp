@@ -1,10 +1,4 @@
-#include "Document.h"    
-#include "Render/D3D11/Renderer.h"
-#include "Core/Entity/LineEntity.hpp"
-#include "Core/Object/Object.hpp"
-#include <vector> 
-#include <memory>
-#include <utility>
+#include "Document.h"   
 namespace MiniCAD
 {
     Document::Document(Renderer& render, float width, float height)
@@ -13,14 +7,13 @@ namespace MiniCAD
         , m_overlay()
         , m_viewport(render, width, height)
         , m_picking(m_scene, m_viewport)
-        , m_editor(m_scene, m_cmdStack, m_viewport, m_overlay,m_picking)
+        , m_editor(m_scene, m_cmdStack, m_viewport, m_overlay, m_picking)
     {
-      
     }
 
     bool Document::OnInput(const InputEvent& e)
     {
-        return m_editor.OnInput(e); 
+        return m_editor.OnInput(e);
     }
 
     void Document::Resize(float width, float height)
@@ -33,27 +26,20 @@ namespace MiniCAD
         m_overlayVertices.clear();
 
         UpdateSceneVerties();
-           
-        m_overlay.ToVertices(m_overlayVertices); // 每帧分配
 
-        auto hoverIds     = m_picking.GetHovered();      // 获取悬浮 ids
-        auto selectionIds = m_picking.GetSelection(); // 获取选中 ids
+        m_overlay.ToVertices(m_overlayVertices); // 每帧分配 
 
-        //  悬浮或选中的在overlayVertices设置颜色  
         auto vs = BuildViewState();
         m_viewport.Render(target, vs);
-         
-    } 
-     
+    }
 
     void Document::UpdateSceneVerties()
-    { 
+    {
         if (!m_scene.IsDirty() && !m_picking.IsDirty())
             return;
 
-
         m_sceneVertices.clear();
-        m_overlay.Clear();  
+        m_overlay.Clear();
 
         const auto& hoverIds     = m_picking.GetHovered();
         const auto& selectionIds = m_picking.GetSelection();
@@ -85,7 +71,7 @@ namespace MiniCAD
                 // ===== Overlay：画高亮 =====
                 if (isSelected)
                 {
-                    auto line = std::make_unique<LineEntity>(id, geom.Start, geom.End); 
+                    auto line = std::make_unique<LineEntity>(id, geom.Start, geom.End);
                     line->GetAttr().Color = selectionColor;
                     m_overlay.Add(std::move(line));
                 }
@@ -98,20 +84,25 @@ namespace MiniCAD
             });
 
         m_scene.ClearDirty();
-        m_picking.ClearDirty(); 
+        m_picking.ClearDirty();
     }
 
     ViewState Document::BuildViewState()
     {
         ViewState vs;
-
         vs.Scene   = m_sceneVertices;
         vs.Overlay = m_overlayVertices;
+
+        vs.Selection.Active = m_picking.IsBoxSelecting();
+        vs.Selection.Start  = m_picking.GetBoxStart();
+        vs.Selection.End    = m_picking.GetBoxEnd();
+
+
 
         vs.ShowGrid = true;
         vs.ShowGizmo = true;
 
         return vs;
+
     }
- 
 }

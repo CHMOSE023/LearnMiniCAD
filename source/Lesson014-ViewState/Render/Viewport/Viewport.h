@@ -4,13 +4,21 @@
 #include "Render/ViewState.h"
 #include <unordered_set> 
 namespace MiniCAD
-{ 
+{
+    // 选择范围框
+    struct SelectionGeometry
+    {
+        std::vector<Vertex_P3_C4> fill;
+        std::vector<Vertex_P3_C4> border;
+        XMMATRIX screenVP = {};
+    };
+
     class Viewport
     {
     public:
         Viewport(Renderer& renderer, float width, float height);
 
-        void Render(const RenderTarget& target, ViewState  viewState);
+        void Render(const RenderTarget& target, ViewState& viewState);
         void Resize(float width, float height);
 
         Camera&        GetCamera();
@@ -19,11 +27,14 @@ namespace MiniCAD
         // 交互 
         void Pan (float dx, float dy);
         void Zoom(float delta, float mouseX, float mouseY);
+    private: 
+        SelectionGeometry BuildSelectionGeometry(const RenderTarget& target, ViewState& viewState);
+        void AddDashedLine(std::vector<Vertex_P3_C4>& out, XMFLOAT3& a, XMFLOAT3& b, XMFLOAT4& color, float dashLen = 6.0f, float gapLen = 4.0f);
     private:
         Camera       m_camera;
         Renderer&    m_renderer;  
         std::vector<Vertex_P3_C4> m_vertices;
-        std::vector<Vertex_P3_C4> m_vertices1;  
+        std::vector<Vertex_P3_C4> m_vertices1; 
     };
 	
 }
