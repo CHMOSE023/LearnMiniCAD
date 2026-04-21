@@ -1,48 +1,36 @@
-#pragma once   
+#pragma once
 #include "App/Input/IInputHandler.h" 
-#include "App/Input/InputEvent.h" 
-#include "App/Picking/Picking.h"
-#include "App/Scene/Scene.h" 
+#include "App/Scene/Scene.h"
 #include "App/CommandStack/CommandStack.h" 
+#include "App/Tools/ITool.h"
+#include "App/Overlay/Overlay.h"
+#include "App/Picking/Picking.h"
 #include "Render/Viewport/Viewport.h"
 #include <unordered_set> 
-#include <DirectXMath.h>
 #include <memory>
-#include <App/Tools/ITool.h>
-#include "Render/ViewState.h"
 namespace MiniCAD
-{ 
-    class Editor : public IInputHandler
-    {
-    public:
-        Editor(Scene* scene, CommandStack* cmdStack); 
-        bool OnInput(const InputEvent& e) override;  
-        void OnResize(float width, float height);
-        ViewState BuildViewState() const;
-        const std::unordered_set<Object::ObjectID>& GetSelection();
-        const std::unordered_set<Object::ObjectID>& GetHovered(); 
-    private:
-        void OnMouseButtonDown(const InputEvent& e);
-        void OnMouseButtonUp  (const InputEvent& e);
-        void OnKeyDown        (const InputEvent& e);
-        void OnKeyUp          (const InputEvent& e);
-        void OnMouseMove      (const InputEvent& e);   
-        void OnMouseWheel     (const InputEvent& e);
+{
+	class Editor  
+	{
+	public:
+		Editor(Scene& scene, CommandStack& cmdStack, Viewport& viewport, Overlay& overlay, Picking& picking);
+		bool OnInput(const InputEvent& e);
 
-    private:
-        void DeleteSelected();
-    private: 
-        Scene*        m_scene     = nullptr;      
-        CommandStack* m_cmdStack  = nullptr; 
-        Viewport*     m_view      = nullptr; 
-        bool          m_showGrid  = true; // 网格
-        bool          m_showGizmo = true; // 夹点
+		// Picking 获取选择 
+		const std::unordered_set<Object::ObjectID>& GetSelection();
+		const std::unordered_set<Object::ObjectID>& GetHovered();
 
-        std::unique_ptr<ITool>   m_tool;
+	private:
+		bool HandleGlobal(const InputEvent& e);
+		bool HandleDefault(const InputEvent& e);
+		void StartLineTool();
+	private:
+		Scene&        m_scene;            
+		CommandStack& m_cmdStack;		   
+		Viewport&     m_viewport;		   
+		Overlay&      m_overlay;
+		Picking&      m_picking;
 
-        Picking       m_picking;
-
-		float 	 m_mouseX = 0.f, m_mouseY = 0.f; // 鼠标位置（屏幕坐标）
-         
-    };
+		std::unique_ptr<ITool>   m_tool;
+	};
 }
