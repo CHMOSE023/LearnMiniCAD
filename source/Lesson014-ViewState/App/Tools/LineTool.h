@@ -21,7 +21,7 @@ namespace MiniCAD
             , m_overlay(overlay)
         {
             printf("[LineTool] 左键起点 | 左键延续 | 右键结束段 | 空格继续 | ESC 退出\n");
-        } 
+        }
         ~LineTool()
         {
             printf("退出绘制\n");
@@ -48,7 +48,7 @@ namespace MiniCAD
 
             if (e.IsRightClick() || e.IsCancel()) // 结束绘制
             {
-                m_overlay.Clear(); 
+                m_overlay.Clear();
                 if (OnFinished) OnFinished();
                 return true;
             }
@@ -57,23 +57,14 @@ namespace MiniCAD
             {
                 m_preview = GetPoint(e); // 预览终点
                 m_overlay.Clear();
-
-                auto temp = std::make_unique<LineEntity>(
-                    0,
-                    m_start,
-                    m_preview
-                );
-
-                m_overlay.Add(std::move(temp));
-
-
+                m_overlay.AddLine(m_start, m_preview, { 0.6,0.6,0.6,0.6 });
                 return false; // 交给渲染
             }
 
             return false;
         }
 
-    private: 
+    private:
 
         DirectX::XMFLOAT3 GetPoint(const InputEvent& e)
         {
@@ -91,14 +82,14 @@ namespace MiniCAD
             auto cmd = std::make_unique<AddEntityCommand>(std::move(line));
             m_cmdStack.Execute(std::move(cmd), m_scene);
 
-            printf("提交线 Id %d  (%.3f,%.3f) (%.3f,%.3f)\n", id ,a.x, a.y, b.x, b.y);
+            printf("提交线 Id %d  (%.3f,%.3f) (%.3f,%.3f)\n", id, a.x, a.y, b.x, b.y);
         }
-         
+
     private:
-        Scene&        m_scene;
+        Scene& m_scene;
         CommandStack& m_cmdStack;
-        Viewport&     m_viewport;
-        Overlay&      m_overlay;
+        Viewport& m_viewport;
+        Overlay& m_overlay;
 
         bool m_hasStart = false;
         XMFLOAT3 m_start{};

@@ -48,7 +48,7 @@ namespace MiniCAD
         const DirectX::XMFLOAT4 selectionColor = { 0,  0.3, 0.8, 0.9 };
 
         m_scene.ForEachObject([&](const Object& obj)
-            {
+            { 
                 if (!obj.IsKindOf<LineEntity>())
                     return;
 
@@ -71,15 +71,11 @@ namespace MiniCAD
                 // ===== Overlay：画高亮 =====
                 if (isSelected)
                 {
-                    auto line = std::make_unique<LineEntity>(id, geom.Start, geom.End);
-                    line->GetAttr().Color = selectionColor;
-                    m_overlay.Add(std::move(line));
+                    m_overlay.AddLine(geom.Start, geom.End, selectionColor);
                 }
                 else if (isHovered)
                 {
-                    auto line = std::make_unique<LineEntity>(id, geom.Start, geom.End);
-                    line->GetAttr().Color = hoverColor;
-                    m_overlay.Add(std::move(line));
+                    m_overlay.AddLine(geom.Start, geom.End, hoverColor);
                 }
             });
 
@@ -95,9 +91,7 @@ namespace MiniCAD
 
         vs.Selection.Active = m_picking.IsBoxSelecting();
         vs.Selection.Start  = m_picking.GetBoxStart();
-        vs.Selection.End    = m_picking.GetBoxEnd();
-
-
+        vs.Selection.End    = m_picking.GetBoxEnd(); 
 
         vs.ShowGrid = true;
         vs.ShowGizmo = true;

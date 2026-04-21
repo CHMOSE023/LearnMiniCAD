@@ -3,7 +3,7 @@
 #include <memory>
 #include <functional>
 #include "Core/Object/Object.hpp"
-#include "Render/D3D11/Shader.h"
+#include "Render/D3D11/Shader.h" 
 
 namespace MiniCAD
 {
@@ -15,41 +15,63 @@ namespace MiniCAD
     public:
         void Clear()
         {
-            m_objects.clear();
+            m_lines.clear();
+            m_points.clear();
         }
 
-        void Add(std::unique_ptr<Object> obj)
+        // ===== Line =====
+        void AddLine(const XMFLOAT3& a, const XMFLOAT3& b, const XMFLOAT4& color)
         {
-            m_objects.push_back(std::move(obj));
+            m_lines.push_back({ a, b, color });
         }
 
-        void ForEach(std::function<void(const Object&)> fn) const
+        // ===== Point =====
+        void AddPoint(const XMFLOAT3& p, const XMFLOAT4& color)
         {
-            for (auto& obj : m_objects)
-                fn(*obj);
+            m_points.push_back({ p, color });
         }
 
+        // ===== Export to GPU vertices =====
         void ToVertices(std::vector<Vertex_P3_C4>& out) const
-        { 
-            for (const auto& obj : m_objects)
+        {
+            out.reserve(out.size() + m_lines.size() * 2 + m_points.size());
+
+            // Lines -> 2 vertices
+            for (const auto& l : m_lines)
             {
-                if (!obj) continue;
+                out.push_back({ l.a, l.color });
+                out.push_back({ l.b, l.color });
+            }
 
-                if (obj->IsKindOf<LineEntity>())
-                {
-                    const auto& line = static_cast<const LineEntity&>(*obj);
-                    const auto& color = line.GetAttr().Color;
-
-                    const auto& start = line.GetLine().Start;
-                    const auto& end = line.GetLine().End;
-
-                    out.push_back({ start, color });
-                    out.push_back({ end,   color });
-                }
+            // Points -> single vertex
+            for (const auto& p : m_points)
+            {
+                out.push_back({ p.p, p.color });
             }
         }
 
+        bool Empty() const
+        {
+            return m_lines.empty() && m_points.empty();
+        }
+
+
     private:
-        std::vector<std::unique_ptr<Object>> m_objects;
+        struct Line
+        {
+            XMFLOAT3 a;
+            XMFLOAT3 b;
+            XMFLOAT4 color;
+        };
+
+        struct Point
+        {
+            XMFLOAT3 p;
+            XMFLOAT4 color;
+        };
+
+    private:
+        std::vector<Line>  m_lines;
+        std::vector<Point> m_points;
     };
 }
