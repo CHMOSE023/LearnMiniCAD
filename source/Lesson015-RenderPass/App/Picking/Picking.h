@@ -26,6 +26,7 @@ namespace MiniCAD
         const std::unordered_set<ObjectID>& GetSelection() const { return m_selection; }
         const std::unordered_set<ObjectID>& GetHovered()   const { return m_hovered; }
 
+        // 选择范围框
         DirectX::XMFLOAT2 GetBoxStart()    const;
         DirectX::XMFLOAT2 GetBoxEnd()     const;
         bool              IsBoxSelecting() const;

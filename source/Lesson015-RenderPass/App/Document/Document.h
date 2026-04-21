@@ -54,7 +54,7 @@ namespace MiniCAD
 		bool CanRedo() const { return m_cmdStack.CanRedo(); }
 	private:
 		void UpdateSceneVerties(); // 更新屏幕渲染数据   
-		ViewState BuildViewState();// 构建渲染数据
+		ViewState BuildViewState();// 构建渲染状态
 	private:
 		Editor         m_editor;
 		Scene          m_scene; 

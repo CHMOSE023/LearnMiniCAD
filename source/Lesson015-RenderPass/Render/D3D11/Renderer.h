@@ -24,7 +24,7 @@ namespace MiniCAD
                     const XMMATRIX& viewProj,
                     PrimitiveType type,
                     bool depth = true,
-                    bool blend = false);   // ⭐ 新增
+                    bool blend = false);   //  新增
 
     private:
         void Initialize();
@@ -41,7 +41,7 @@ namespace MiniCAD
         // ===== states =====
         ComPtr<ID3D11DepthStencilState> m_depthEnabled;
         ComPtr<ID3D11DepthStencilState> m_depthDisabled;
-        ComPtr<ID3D11DepthStencilState> m_depthReadOnly; // 透明用
+        ComPtr<ID3D11DepthStencilState> m_depthReadOnly;  // 透明用
 
         ComPtr<ID3D11RasterizerState> m_rsNoCull;
         ComPtr<ID3D11BlendState>      m_blendAlpha;

@@ -34,12 +34,8 @@ namespace MiniCAD
 
         UpdateSceneVerties();
            
-        m_overlay.ToVertices(m_overlayVertices);      // 每帧分配
+        m_overlay.ToVertices(m_overlayVertices);      // 每帧分配 
 
-        auto hoverIds     = m_picking.GetHovered();   // 获取悬浮 ids
-        auto selectionIds = m_picking.GetSelection(); // 获取选中 ids
-
-        //  悬浮或选中的在overlayVertices设置颜色  
         auto vs = BuildViewState();
         m_viewport.Render(target, vs);
          

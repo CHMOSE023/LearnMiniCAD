@@ -5,6 +5,21 @@
 #include <unordered_set> 
 namespace MiniCAD
 { 
+    // 选择范围框
+    struct SelectionGeometry
+    {
+        std::vector<Vertex_P3_C4> fill;
+        std::vector<Vertex_P3_C4> border;
+        XMMATRIX screenVP = {};
+    };
+
+    struct GripGeometry
+    {
+        std::vector<Vertex_P3_C4> fill;
+        std::vector<Vertex_P3_C4> border;
+        XMMATRIX screenVP = {};
+    };
+
     class Viewport
     {
     public:
@@ -19,8 +34,10 @@ namespace MiniCAD
         // 交互 
         void Pan (float dx, float dy);
         void Zoom(float delta, float mouseX, float mouseY);
-    private: 
-        void BuildOverlayGeometry  (const ViewState&    viewState); 
+    private:
+        SelectionGeometry BuildSelectionGeometry(const RenderTarget& target, ViewState& viewState);
+        void AddDashedLine(std::vector<Vertex_P3_C4>& out, XMFLOAT3& a, XMFLOAT3& b, XMFLOAT4& color, float dashLen = 6.0f, float gapLen = 4.0f);
+        GripGeometry BuildGripGeometry(const RenderTarget& target, const ViewState& vs);
     private:
         Camera       m_camera;
         Renderer&    m_renderer;  
