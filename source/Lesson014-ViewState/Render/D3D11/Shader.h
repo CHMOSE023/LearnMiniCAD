@@ -7,38 +7,36 @@
 #include <format>
 using  Microsoft::WRL::ComPtr;
 using namespace DirectX;
+
 namespace MiniCAD
-{ 
-    struct Vertex_P3_C4
+{
+    struct Vertex_P3_C4                      // 顶点位置 + 颜色
     {
-        XMFLOAT3 pos;
-        XMFLOAT4 color;
+        XMFLOAT3 pos;                        // 顶点位置
+        XMFLOAT4 color;                      // 顶点颜色
+    };
+     
+    struct Vertex_P3
+    {
+        XMFLOAT3 pos;                       // 顶点位置 
     };
 
-    struct Vertex_P3_N3_U2
+    struct ShaderProgram                    // 着色器程序
     {
-        XMFLOAT3 pos;
-        XMFLOAT3 normal;
-        XMFLOAT2 uv;
+        ComPtr<ID3D11VertexShader> vs;      // 顶点着色器
+        ComPtr<ID3D11PixelShader>  ps;      // 像素着色器
+        ComPtr<ID3DBlob>           vsBlob;  // 顶点着色器字节码（用于创建 InputLayout）
     };
 
-    struct ShaderProgram
+    struct PipelineState                    // 渲染管线状态
     {
-        ComPtr<ID3D11VertexShader> vs;
-        ComPtr<ID3D11PixelShader>  ps;
-        ComPtr<ID3DBlob>           vsBlob;
-    };
-
-    struct PipelineState
-    {
-        ShaderProgram*           shader = nullptr;
-        ID3D11InputLayout*       layout = nullptr;
-        ID3D11DepthStencilState* depth = nullptr;
-        D3D11_PRIMITIVE_TOPOLOGY topology;
+        ShaderProgram*           shader   = nullptr;
+        ID3D11InputLayout*       layout   = nullptr;
+        D3D11_PRIMITIVE_TOPOLOGY topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
 
         bool operator==(const PipelineState& other) const
         {
-            return shader == other.shader && layout == other.layout &&  depth == other.depth &&  topology == other.topology;
+            return shader == other.shader && layout == other.layout && topology == other.topology;
         }
     };
 
@@ -46,7 +44,8 @@ namespace MiniCAD
 
     ComPtr<ID3D11InputLayout> CreateLayout(ID3D11Device* device, D3D11_INPUT_ELEMENT_DESC* desc, UINT count, ID3DBlob* vsBlob);
 
-    class LineShader // P3C4
+
+    class LineShader
     {
     public:
         void Initialize(ID3D11Device* device)
@@ -55,62 +54,61 @@ namespace MiniCAD
 
             D3D11_INPUT_ELEMENT_DESC desc[] =
             {
-                {"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
-                {"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0},
+                {"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,   0, 0,D3D11_INPUT_PER_VERTEX_DATA,0},
+                {"COLOR",   0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0},
             };
 
             m_layout = CreateLayout(device, desc, 2, m_shader.vsBlob.Get());
         }
 
-        PipelineState GetPipeline(ID3D11DepthStencilState* depth, D3D11_PRIMITIVE_TOPOLOGY topo = D3D11_PRIMITIVE_TOPOLOGY_LINELIST)
+        PipelineState GetPipeline()
         {
             PipelineState pso;
 
-            pso.shader    = &m_shader;
-            pso.layout    = m_layout.Get();
-            pso.topology  = topo;
-            pso.depth     = depth;
+            pso.shader = &m_shader;
+            pso.layout = m_layout.Get();
+            pso.topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST; // 将顶点数据解释为线条列表
 
             return pso;
         }
 
     private:
-        ShaderProgram m_shader;
+        ShaderProgram             m_shader;
         ComPtr<ID3D11InputLayout> m_layout;
     };
- 
-    class MeshShader // P3N3U2
+
+
+    class GripShader
     {
     public:
         void Initialize(ID3D11Device* device)
         {
-            m_shader = CreateShader(device, L"Mesh.hlsl");
+            m_shader = CreateShader(device, L"Grip.hlsl");
 
             D3D11_INPUT_ELEMENT_DESC desc[] =
             {
-                {"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
-                {"NORMAL",  0,DXGI_FORMAT_R32G32B32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0},
-                {"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,24,D3D11_INPUT_PER_VERTEX_DATA,0},
+                {"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0, 0,D3D11_INPUT_PER_VERTEX_DATA,0},
             };
 
-            m_layout = CreateLayout(device, desc, 3, m_shader.vsBlob.Get());
+
+            m_layout = CreateLayout(device, desc, 1, m_shader.vsBlob.Get());
         }
 
-        PipelineState GetPipeline(ID3D11DepthStencilState* depth)
+        PipelineState GetPipeline()
         {
             PipelineState pso;
-            pso.shader   = &m_shader;
-            pso.layout   = m_layout.Get();
-            pso.topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-            pso.depth    = depth;
+
+            pso.shader = &m_shader;
+            pso.layout = m_layout.Get();
+            pso.topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;  // 将顶点数据解释为三角形列表
 
             return pso;
         }
 
     private:
-        ShaderProgram m_shader;
+        ShaderProgram             m_shader;
         ComPtr<ID3D11InputLayout> m_layout;
-    };
 
+    };
 
 }

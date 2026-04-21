@@ -1,47 +1,104 @@
 #include "Viewport.h"
 #include <DirectXMath.h>
-#include "Extraction/SceneExtractor.h"
+#include "Render/D3D11/Renderer.h" 
+#include "FractalGeometryGenerator.hpp"
+#include "Camera.h"
 using namespace DirectX;
 
 namespace MiniCAD
 { 
-    Viewport::Viewport(Renderer* renderer,float width, float height)
-        : m_renderer(renderer)
-		, m_camera(nullptr)
-    { 
+    inline static XMFLOAT4 GetColor(int index, int maxIndex)
+    {
+        float t = (float)index / (float)maxIndex;
+          
+        return {
+            0.65f,
+            0.2f + 0.8f * (1.0f - t),
+            0.3f + 0.7f * t,
+            1.0f
+        };
     }
 
-    void Viewport::Render(const RenderTarget& target)
+    inline static void ConvertToVertices(const std::vector<MiniCAD::Line>& lines, std::vector<Vertex_P3_C4>& out)
     {
-        if (!m_renderer || !m_camera) return;
-         
-        XMMATRIX vp = m_camera->GetViewProj();
-         
-        m_renderer->Begin(target, vp);
-   
-        m_renderer->DrawLine(m_sceneVerteies);
-        m_renderer->DrawLine(m_previewVerts);
-         
-        m_renderer->End();
-    }
+        int maxIndex = (int)lines.size();
 
-    void Viewport::Resize(float width, float height)
-    {
-		m_camera->Resize(width, height);
-    }
-     
-
-    void Viewport::SetCamera(Camera* camera)
-    {
-		m_camera = camera;
+        for (int i = 0; i < maxIndex; i++)
+        {
+            const auto& l = lines[i];
+            XMFLOAT4 c = GetColor(i, maxIndex);
+            out.push_back({ l.Start, c });
+            out.push_back({ l.End,   c });
+        }
     }
       
-
-    void Viewport::RefreshRenderData(const ISceneReader& scene, const ViewState& viewState)
+    Viewport::Viewport(Renderer& renderer,float width, float height)
+        : m_renderer(renderer) 
+        , m_camera(width, height)
     {
-        m_sceneVerteies.clear();
-		m_previewVerts.clear();
-        SceneExtractor::Extract(scene, viewState, m_sceneVerteies, m_previewVerts);         
-    } 
+        
+        Resize(width, height);
+
+        MiniCAD::FractalGeometryGenerator gen;
+         
+        // 谢尔宾斯基地毯
+        std::vector<MiniCAD::Line> lines;
+        MiniCAD::FractalGeometryGenerator::Rect r;
+        r.min = { -7,0,0 };
+        r.max = { -1,6,0 };
+
+        gen.GenerateSierpinskiCarpet(r, 4, lines);
+
+        float n = 6;
+        // 递归分型
+        std::vector<MiniCAD::Line> lines1;
+        MiniCAD::Line L0({ 0,0,0 }, { n,0,0 });
+        MiniCAD::Line L1({ n,0,0 }, { n,n,0 });
+        MiniCAD::Line L2({ n,n,0 }, { 0,n,0 });
+        MiniCAD::Line L3({ 0,n,0 }, { 0,0,0 });
+        gen.GenerateRecurseQuad(L0, L1, L2, L3, 50, lines1);
+
+        // 转 GPU
+        ConvertToVertices(lines, m_vertices);
+        ConvertToVertices(lines1, m_vertices1);
+
+    }
+     
+    void Viewport::Render(const RenderTarget& target, ViewState  viewState) 
+    {  
+        XMMATRIX vp = m_camera.GetViewProj();
+         
+        m_renderer.Begin(target);                    // BeginFrame 
+        m_renderer.DrawLine(viewState.Scene, vp);    // 场景内容    
+        m_renderer.DrawLine(viewState.Overlay, vp);  // 绘制预览  
+
+        m_renderer.End();                            // EndFrame
+    }
+     
+    void Viewport::Resize(float width, float height)
+    {  
+		m_camera.Resize(width, height);
+    }
+     
+    Camera& Viewport::GetCamera()
+    {
+        return m_camera;
+    }
+
+    const Camera& Viewport::GetCamera() const
+    {
+        return m_camera;
+    }
+      
+    void Viewport::Pan(float dx, float dy)
+    { 
+        m_camera.Pan(dx, dy);  // 只平移，不缩放，不滚轮
+        
+    }
+     
+    void Viewport::Zoom(float delta, float mouseX, float mouseY)
+    {
+        m_camera.Zoom(delta, static_cast<int>(mouseX), static_cast<int>(mouseY));  // delta = 滚轮增量，mouseX/Y = 屏幕坐标
+    }
 
 }

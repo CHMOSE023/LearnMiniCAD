@@ -1,79 +1,117 @@
-#include "Document.h"
-#include "Serialization/AsciiSerializer.h"
-#include <fstream>
+#include "Document.h"    
+#include "Render/D3D11/Renderer.h"
+#include "Core/Entity/LineEntity.hpp"
+#include "Core/Object/Object.hpp"
+#include <vector> 
+#include <memory>
+#include <utility>
 namespace MiniCAD
 {
-    Document::Document(float width, float height)
+    Document::Document(Renderer& render, float width, float height)
+        : m_scene()
+        , m_cmdStack()
+        , m_overlay()
+        , m_viewport(render, width, height)
+        , m_picking(m_scene, m_viewport)
+        , m_editor(m_scene, m_cmdStack, m_viewport, m_overlay,m_picking)
     {
-        m_scene    = std::make_unique<Scene>(width, height);
+      
+    }
 
-        m_cmdStack = std::make_unique<CommandStack>();
+    bool Document::OnInput(const InputEvent& e)
+    {
+        return m_editor.OnInput(e); 
+    }
 
-        m_editor   = std::make_unique<Editor>(m_scene.get(), m_cmdStack.get());
-    } 
-    
-    bool Document::OnInput(const InputEvent& e) 
+    void Document::Resize(float width, float height)
+    {
+        m_viewport.Resize(width, height);
+    }
+
+    void Document::Render(const RenderTarget& target)
     { 
-        // 只处理键盘按下事件
-        if (e.Type == InputEventType::KeyDown)
-        { 
-            if (e.KeyCode == 'S' && e.HasModifier(ModifierKey::Ctrl))  // 判断 Ctrl+S
-            { 
-                // MessageBox(0, L"Ctrl+S", L"保存文件", 0);
-                Save("autosave.cad"); // 保存文档（可改成实际路径或弹窗选择）
-                return true; // 拦截事件
-            }
+        m_overlayVertices.clear();
+
+        UpdateSceneVerties();
            
-            if (e.KeyCode == 'O' && e.HasModifier(ModifierKey::Ctrl))  // 判断 Ctrl+O
-            {
-                // MessageBox(0, L"Ctrl+O", L"打开文件", 0);
-                Load("autosave.cad"); // 保存文档（可改成实际路径或弹窗选择）                 
-                return true; // 拦截事件
-            }
-            
-        }
+        m_overlay.ToVertices(m_overlayVertices); // 每帧分配
 
-        // 其他输入交给 Editor 处理
-        if (m_editor)
-            return m_editor->OnInput(e);
+        auto hoverIds     = m_picking.GetHovered();      // 获取悬浮 ids
+        auto selectionIds = m_picking.GetSelection(); // 获取选中 ids
 
-        return false;
-    }
-
-    void Document::Save(const std::string& path)
-    {
-        std::ofstream ofs(path, std::ios::binary);
-        if (!ofs.is_open())
-        {
-            throw std::runtime_error("无法打开文件保存");
-        }
-
-        // 创建序列化器
-        AsciiSerializer serializer(ofs);
-
-        // 保存场景
-        m_scene->Serialize(serializer); 
-
-        ofs.close();
+        //  悬浮或选中的在overlayVertices设置颜色  
+        auto vs = BuildViewState();
+        m_viewport.Render(target, vs);
          
+    } 
+     
+
+    void Document::UpdateSceneVerties()
+    { 
+        if (!m_scene.IsDirty() && !m_picking.IsDirty())
+            return;
+
+
+        m_sceneVertices.clear();
+        m_overlay.Clear();  
+
+        const auto& hoverIds     = m_picking.GetHovered();
+        const auto& selectionIds = m_picking.GetSelection();
+
+        const DirectX::XMFLOAT4 hoverColor     = { 0,  0.5, 0.8, 0.9 };
+        const DirectX::XMFLOAT4 selectionColor = { 0,  0.3, 0.8, 0.9 };
+
+        m_scene.ForEachObject([&](const Object& obj)
+            {
+                if (!obj.IsKindOf<LineEntity>())
+                    return;
+
+                const auto& line = static_cast<const LineEntity&>(obj);
+                const auto& attr = line.GetAttr();
+                const auto& geom = line.GetLine();
+
+                const auto id = obj.GetID();
+
+                const bool isSelected = selectionIds.contains(id);
+                const bool isHovered = hoverIds.contains(id);
+
+                // ===== Base：只画普通 =====
+                if (!isSelected && !isHovered)
+                {
+                    m_sceneVertices.push_back({ geom.Start, attr.Color });
+                    m_sceneVertices.push_back({ geom.End,   attr.Color });
+                }
+
+                // ===== Overlay：画高亮 =====
+                if (isSelected)
+                {
+                    auto line = std::make_unique<LineEntity>(id, geom.Start, geom.End); 
+                    line->GetAttr().Color = selectionColor;
+                    m_overlay.Add(std::move(line));
+                }
+                else if (isHovered)
+                {
+                    auto line = std::make_unique<LineEntity>(id, geom.Start, geom.End);
+                    line->GetAttr().Color = hoverColor;
+                    m_overlay.Add(std::move(line));
+                }
+            });
+
+        m_scene.ClearDirty();
+        m_picking.ClearDirty(); 
     }
 
-    void Document::Load(const std::string& path)
+    ViewState Document::BuildViewState()
     {
-        std::ifstream ifs(path, std::ios::binary);
-        if (!ifs.is_open())
-        {
-            throw std::runtime_error("无法打开文件加载");
-        }
+        ViewState vs;
 
-        AsciiSerializer serializer(ifs);
+        vs.Scene   = m_sceneVertices;
+        vs.Overlay = m_overlayVertices;
 
-        m_scene->Deserialize(serializer);    // 清空旧数据并加载   
-        m_cmdStack->Clear();                 // 加载后清空命令栈和选择状态
+        vs.ShowGrid = true;
+        vs.ShowGizmo = true;
 
-        //m_editor->ClearSelection();
-
-        ifs.close();
+        return vs;
     }
-
+ 
 }

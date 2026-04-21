@@ -1,52 +1,73 @@
 #pragma once
 #include <DirectXMath.h>
-#include "App/Scene/Scene.h" 
-#include "Core/Object/Object.hpp" 
-#include <vector>
-#include <unordered_set> 
+#include <unordered_set>
 #include "App/Input/InputEvent.h"
+#include "App/Scene/Scene.h"
+#include "Core/Object/Object.hpp"
+#include "Render/Viewport/Viewport.h"
+
 namespace MiniCAD
-{ 
-	class Picking
-	{
+{
+    class Picking
+    {
     public:
         using ObjectID = Object::ObjectID;
 
-        Picking(Scene* scene) : m_scene(scene) {}
-          
+        Picking(Scene& scene, Viewport& viewport);
+
+        // 输入入口
+        bool OnInput(const InputEvent& e);
+
+        // 查询接口
+        ObjectID HitTest(const DirectX::XMFLOAT2& pt, float thresh);
+        std::unordered_set<ObjectID> BoxSelect(const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b);
+
+        // 状态访问
+        const std::unordered_set<ObjectID>& GetSelection() const { return m_selection; }
+        const std::unordered_set<ObjectID>& GetHovered()   const { return m_hovered; }
+
+        DirectX::XMFLOAT2 GetBoxPress()    const;
+        bool              IsBoxSelecting() const;
+
+        // Dirty
+        bool IsDirty() const { return m_dirty; }
+        void ClearDirty()   { m_dirty = false; }
+
+    private:
+        // 输入分发
         void OnMouseDown(const InputEvent& e);
-        void OnMouseUp  (const InputEvent& e);
         void OnMouseMove(const InputEvent& e);
+        void OnMouseUp  (const InputEvent& e);
         void OnKeyDown  (const InputEvent& e);
 
-      
-		// 返回对象ID
-        const std::unordered_set<Object::ObjectID>& GetSelection() const { return m_selection; }
-        const std::unordered_set<Object::ObjectID>& GetHovered()  const { return m_hovered; }
-   
-    private: 
-
+        // 核心逻辑
         void UpdateHovered(const InputEvent& e);
         void DoPointPick  (const InputEvent& e);
         void DoBoxPick    (const InputEvent& e);
 
+        void MarkDirty()  { m_dirty = true; }
+
+        template<typename T>
+        static bool SetEquals(const std::unordered_set<T>& a, const std::unordered_set<T>& b);
+
     private:
+        enum class DragState : uint8_t { Idle, Pressing, BoxSelecting }; 
 
-        enum class DragState : uint8_t {
-            Idle,                      // 自由移动，只做 hover 检测。
-			Pressing,                  // 左键按下了，但还没有超过 DRAG_THRESH 阈值，仍然只做 hover 检测。
-			BoxSelecting               // 移动超过阈值，确认用户在拖框
-        };
+        static constexpr float DRAG_THRESH  = 2.0f; // 像素阈值：用于区分“点击”和“拖拽”      过小 → 容易误触拖拽，过大 → 拖拽响应迟钝
+        static constexpr float HOVER_THRESH = 6.0f; // 像素阈值：悬浮检测半径（屏幕空间）     一般略大于 PICK_THRESH，提高可用性（更容易“扫到”）
+        static constexpr float PICK_THRESH  = 5.0f; // 像素阈值：点击选中检测半径（屏幕空间） 通常略小于 HOVER_THRESH，避免“看起来没选中却点中了”
 
-        static constexpr float DRAG_THRESH = 2.0f;   // px，超过阈值 进入框选
+        Scene&    m_scene;
+        Viewport& m_viewport;
 
-		Scene* m_scene = nullptr;
+        std::unordered_set<ObjectID> m_selection;
+        std::unordered_set<ObjectID> m_hovered;
 
-        std::unordered_set<Object::ObjectID> m_selection;
-        std::unordered_set<Object::ObjectID> m_hovered;
+        DragState m_drag = DragState::Idle;
 
-        DragState m_drag   = DragState::Idle;
-        int       m_pressX = 0;
-        int       m_pressY = 0;
-	};
+        int m_pressX = 0;
+        int m_pressY = 0;
+
+        bool m_dirty = false;
+    };
 }

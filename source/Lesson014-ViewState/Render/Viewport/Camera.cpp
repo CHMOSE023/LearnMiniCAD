@@ -24,9 +24,9 @@ namespace MiniCAD
         float worldPerPixelX = (m_zoom * m_aspect) / m_screenWidth;
         float worldPerPixelY = m_zoom              / m_screenHeight;
 
-        m_target.x += dx * worldPerPixelX;
+        m_target.x -= dx * worldPerPixelX;
         m_target.y += dy * worldPerPixelY;
-
+        
         UpdateViewProj();
     }
 
@@ -39,7 +39,7 @@ namespace MiniCAD
         constexpr float zoomFactor = 1.1f;
         if (delta > 0) m_zoom /= zoomFactor;
         else           m_zoom *= zoomFactor;
-        m_zoom = std::clamp(m_zoom, 0.1f, 100.0f);
+		m_zoom = std::clamp(m_zoom, 0.01f, 10000.0f); // 缩放范围限制
 
         // 3. zoom 变了，先刷新矩阵
         UpdateViewProj();
@@ -55,15 +55,10 @@ namespace MiniCAD
         UpdateViewProj();
     }
      
-    // ─── 矩阵 ─────────────────────────────────────────────────────────────────
-
+    // ─── 矩阵 ───────────────────────────────────────────────────────────────── 
     XMMATRIX Camera::GetView() const
-    {
-        XMVECTOR eye    = XMVectorSet(m_target.x, m_target.y, m_height, 1.0f);
-        XMVECTOR target = XMVectorSet(m_target.x, m_target.y, -1000.0f, 1000.0f);
-        XMVECTOR up     = XMVectorSet(0, 1, 0, 0);
-         
-        return XMMatrixLookAtLH(eye, target, up);
+    {  
+        return XMMatrixTranslation(-m_target.x, -m_target.y, 0.0f); 
     }
 
     XMMATRIX Camera::GetProj() const
@@ -71,12 +66,12 @@ namespace MiniCAD
         float viewWidth  = m_zoom * m_aspect; 
         float viewHeight = m_zoom;
 
-        return XMMatrixOrthographicLH(viewWidth, viewHeight, 0.1f, 1000.0f);
+        return XMMatrixOrthographicLH(viewWidth, viewHeight, 0.0f, 1000.0f);
     }
       
     void Camera::UpdateViewProj()
     {
-        m_viewProj    = GetView() * GetProj();
+        m_viewProj    = GetView()* GetProj();
         m_invViewProj = XMMatrixInverse(nullptr, m_viewProj);
     }
 

@@ -9,7 +9,7 @@ namespace MiniCAD
     public:
         Viewport(Renderer& renderer, float width, float height);
 
-        void Render(const RenderTarget& target, const std::vector<Vertex_P3_C4>& sceneVertices, const std::vector<Vertex_P3_C4>& overlayVertices);
+        void Render(const RenderTarget& target, const std::vector<Vertex_P3_C4>& sceneVertices, const std::vector<Vertex_P3_C4>& overlayVertices, std::span<const GripDraw> grips);
         void Resize(float width, float height);
 
         Camera&        GetCamera();
