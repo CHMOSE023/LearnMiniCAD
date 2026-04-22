@@ -59,6 +59,7 @@ namespace MiniCAD
             {
                 m_tool->Cancel();
                 m_tool.reset();
+                m_overlay.Clear(); // 清空预览
             }
             return true;
         }
@@ -98,7 +99,10 @@ namespace MiniCAD
 			m_tool->Cancel(); // 自动退出旧工具
 
         m_tool = std::make_unique<LineTool>(m_scene, m_cmdStack, m_viewport, m_overlay);
-		m_tool->OnFinished = [this]() {m_tool.reset(); }; // 内部结束绘制
+		m_tool->OnFinished = [this]() { 
+            m_overlay.Clear(); // 清空预览
+            m_tool.reset(); 
+        }; // 内部结束绘制
 		printf("[Editor] Start LineTool\n");
 	}
 
