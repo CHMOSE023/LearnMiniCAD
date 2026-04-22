@@ -1,13 +1,32 @@
 #pragma once 
-#include "Core/Object/Object.hpp"
-#include <unordered_set>
+#include "Render/D3D11/Shader.h"
+#include <span>
+#include <vector>
 namespace MiniCAD
 {
+    struct DragRect
+    {
+        bool     Active = false;
+        XMFLOAT2 Start  = { .0f,.0f };                // 鼠标按下
+        XMFLOAT2 End    = { .0f,.0f };                // 当前鼠标
+        XMFLOAT4 Color  = { 0.3f, 0.6f, 1.0f, 0.2f }; // 填充
+        XMFLOAT4 Border = { 0.3f, 0.6f, 1.0f, 1.0f }; // 边框
+    };
+
     struct GripDraw
     {
-        enum class Type : uint8_t { Start, Mid, End };
+        enum class Type : uint8_t
+        {
+            Start,
+            Mid,
+            End,
+            Corner,     // 多段线
+            Center,     // CAD 圆心
+            Tangent     // 曲线控制点
+        };
+
         DirectX::XMFLOAT2 Pos;
-        Type              GripType;
+        Type              Type;
         bool              Hovered;
     };
 
@@ -15,40 +34,26 @@ namespace MiniCAD
     {
         enum class Type : uint8_t { None, Endpoint, Midpoint, Nearest, Grid };
         Type              SnapType = Type::None;
-        DirectX::XMFLOAT2 Pos= {};
+        DirectX::XMFLOAT2 Pos = {};
         bool              IsValid() const { return SnapType != Type::None; }
     };
 
-    /// <summary>
-	/// View 状态桥梁,Editor 维护交互状态（Selection/Hovered），Viewport 维护渲染开关（ShowGrid/ShowGizmo），它们通过 ViewState 进行桥接，解耦彼此。
-    /// </summary>
     struct ViewState
-    {   
-        using ObjectID = Object::ObjectID;
+    {
+        // ===== Geometry =====
+        std::span<const Vertex_P3_C4> Scene;   // 屏幕
+        std::span<const Vertex_P3_C4> Overlay; // 预览 
+        std::vector<GripDraw>         Grips;   // 夹点 
 
-        // 交互结果
-        const std::unordered_set<ObjectID>* Selection = nullptr;
-        const std::unordered_set<ObjectID>* Hovered   = nullptr;
+        DragRect  Selection;          // 选择框  
+        float MouseX = 0;             // 客户区像素坐标
+        float MouseY = 0;
+        // ===== Render flags =====
+        bool ShowGrid      = true;    // 轴网
+        bool ShowGizmo     = true;    //  
+        bool ShowCurrorBox = true;    // 鼠标中间方框
 
-        std::vector<GripDraw> Grips;
-
-        // 渲染开关
-        bool ShowGrid  = true;
-        bool ShowGizmo = true;
-
-        bool CrossBox  = true;  
-
-		float MouseX = 0.0f; // 可选：鼠标位置（屏幕坐标）
-		float MouseY = 0.0f;  
-           
-        // 是否显示框选矩形（由 Editor 控制）
-
-        bool  BoxSelected = true;
-        float BoxPressX   = 0.0f;
-        float BoxPressY   = 0.0f;
-
-		// Snap状态
-        SnapDraw Snap;
-         
+        // ===== 最近点 ===== 
+        SnapDraw Snap    = {};
     };
 }

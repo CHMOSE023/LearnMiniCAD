@@ -1,7 +1,7 @@
 #include "SnapEngine.h"
 #include "Core/Entity/LineEntity.hpp"
 #include <cmath>
-#include <algorithm>
+#include <algorithm>  
 
 using namespace DirectX;
 
@@ -30,7 +30,7 @@ namespace MiniCAD
 
     // ─── 主入口 ───────────────────────────────────────────────────────────────
 
-    SnapResult SnapEngine::Query(const XMFLOAT2& sp,   Scene* scene, const Camera* cam) const
+    SnapResult SnapEngine::Query(const XMFLOAT2& sp, const Scene& scene, const Camera& cam) const
     {
         if (EnableEndpoint) { auto r = TryEndpoint(sp, scene, cam); if (r.IsValid()) return r; }
         if (EnableMidpoint) { auto r = TryMidpoint(sp, scene, cam); if (r.IsValid()) return r; }
@@ -41,19 +41,19 @@ namespace MiniCAD
 
     // ─── Endpoint ─────────────────────────────────────────────────────────────
 
-    SnapResult SnapEngine::TryEndpoint(const XMFLOAT2& sp, Scene* scene, const Camera* cam) const
+    SnapResult SnapEngine::TryEndpoint(const XMFLOAT2& sp, const Scene& scene, const Camera& cam) const
     {
         SnapResult best;
         float bestDist = FLT_MAX;
 
-        scene->ForEachObject([&](const Object& obj)
+        scene.ForEachObject([&](const Object& obj)
         {
             auto* line = dynamic_cast<const LineEntity*>(&obj);
             if (!line) return;
 
             for (const XMFLOAT3& wp : { line->GetLine().Start, line->GetLine().End })
             {
-                float d = Dist2D(sp, cam->WorldToScreen(wp));
+                float d = Dist2D(sp, cam.WorldToScreen(wp));
                 if (d < SnapRadiusPx && d < bestDist)
                 {
                     bestDist = d;
@@ -67,12 +67,12 @@ namespace MiniCAD
 
     // ─── Midpoint ─────────────────────────────────────────────────────────────
 
-    SnapResult SnapEngine::TryMidpoint(const XMFLOAT2& sp, Scene* scene, const Camera* cam) const
+    SnapResult SnapEngine::TryMidpoint(const XMFLOAT2& sp, const Scene& scene, const Camera& cam) const
     {
         SnapResult best;
         float bestDist = FLT_MAX;
 
-        scene->ForEachObject([&](const Object& obj)
+        scene.ForEachObject([&](const Object& obj)
         {
             auto* line = dynamic_cast<const LineEntity*>(&obj);
             if (!line) return;
@@ -80,7 +80,7 @@ namespace MiniCAD
             auto& L = line->GetLine();
 			XMFLOAT3 mid = { (L.Start.x + L.End.x) * 0.5f, (L.Start.y + L.End.y) * 0.5f, 0 };// z 坐标不重要，保持为0
 
-            float d = Dist2D(sp, cam->WorldToScreen(mid));
+            float d = Dist2D(sp, cam.WorldToScreen(mid));
             if (d < SnapRadiusPx && d < bestDist)
             {
                 bestDist = d;
@@ -93,14 +93,14 @@ namespace MiniCAD
 
     // ─── Nearest ──────────────────────────────────────────────────────────────
 
-    SnapResult SnapEngine::TryNearest(const XMFLOAT2& sp,  Scene* scene, const Camera* cam) const
+    SnapResult SnapEngine::TryNearest(const XMFLOAT2& sp, const Scene& scene, const Camera& cam) const
     {
         SnapResult best;
         float bestDist = FLT_MAX;
 
-        XMFLOAT3 worldMouse = cam->ScreenToWorld(sp.x,sp.y);
+        XMFLOAT3 worldMouse = cam.ScreenToWorld(sp.x,sp.y);
 
-        scene->ForEachObject([&](const Object& obj)
+        scene.ForEachObject([&](const Object& obj)
         {
             auto* line = dynamic_cast<const LineEntity*>(&obj);
             if (!line) return;
@@ -108,7 +108,7 @@ namespace MiniCAD
             auto& L = line->GetLine();
             XMFLOAT3 closest = ClosestPointOnSegment(worldMouse, L.Start, L.End);
 
-            float d = Dist2D(sp, cam->WorldToScreen(closest));
+            float d = Dist2D(sp, cam.WorldToScreen(closest));
             if (d < SnapRadiusPx && d < bestDist)
             {
                 bestDist = d;
@@ -121,9 +121,9 @@ namespace MiniCAD
 
     // ─── Grid ─────────────────────────────────────────────────────────────────
 
-    SnapResult SnapEngine::TryGrid(const XMFLOAT2& sp, const Camera* cam) const
+    SnapResult SnapEngine::TryGrid(const XMFLOAT2& sp, const Camera& cam) const
     {
-        XMFLOAT3 w = cam->ScreenToWorld(sp.x, sp.y);
+        XMFLOAT3 w = cam.ScreenToWorld(sp.x, sp.y);
         return 
         { 
             SnapResult::Type::Grid,

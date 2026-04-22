@@ -1,5 +1,5 @@
+#include "pch.h"
 #include "MainWindow.h"
-
 using namespace MiniCAD;
 int main()
 {
@@ -9,7 +9,7 @@ int main()
 
 	MainWindow mainWindow;
 
-	mainWindow.Initialize(L"Lesson017-Snap",600,400);
+	mainWindow.Initialize(L"Lesson016-Grip",600,400);
 	mainWindow.Run();
 
 }
