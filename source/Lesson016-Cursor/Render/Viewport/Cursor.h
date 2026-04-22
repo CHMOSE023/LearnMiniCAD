@@ -17,6 +17,9 @@ namespace MiniCAD
             float x = state.MouseX;
             float y = state.MouseY;
 
+            if (x <= 5.0 || y <= 5.0)
+                return verts;
+
             verts.push_back({ XMFLOAT3(0,          y, 0), XMFLOAT4(1,1,1,1) });
             verts.push_back({ XMFLOAT3(width,      y, 0), XMFLOAT4(1,1,1,1) });
             verts.push_back({ XMFLOAT3(x,     height, 0), XMFLOAT4(1,1,1,1) });

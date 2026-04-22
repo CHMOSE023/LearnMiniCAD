@@ -10,6 +10,7 @@
 #include "Render/ViewState.h"
 #include "Render/D3D11/Renderer.h" 
 #include "Render/D3D11/RenderTarget.h" 
+#include "App/Snap/SnapEngine.h"
 #include <vector>
 
 namespace MiniCAD

@@ -9,7 +9,7 @@ int main()
 
 	MainWindow mainWindow;
 
-	mainWindow.Initialize(L"Lesson016-Grip",600,400);
+	mainWindow.Initialize(L"Lesson016-Cursor",600,400);
 	mainWindow.Run();
 
 }
