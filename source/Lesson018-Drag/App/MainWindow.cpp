@@ -20,10 +20,16 @@ namespace MiniCAD
 		RECT rc;
 		GetClientRect(m_hwnd, &rc);
 
-		int clientW = rc.right  - rc.left;
+		int clientW = rc.right - rc.left;
 		int clientH = rc.bottom - rc.top;
 
-		return InitD3D11(clientW, clientH) && InitViewportAndDocument(clientW, clientH);
+		if (!InitD3D11(clientW, clientH))
+			return false;
+
+		if (!InitDocument(*m_renderer, clientW, clientH))
+			return false;
+
+		return true;
 	}
 
 	void MainWindow::Run()
@@ -78,6 +84,7 @@ namespace MiniCAD
 		return DefWindowProcW(hwnd, msg, wParam, lParam); 
 	}
 
+ 
 	LRESULT MainWindow::EventProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{ 
 		switch (msg)
@@ -85,10 +92,8 @@ namespace MiniCAD
 		case WM_SIZE:
 		{
 			UINT w = LOWORD(lParam), h = HIWORD(lParam);
-			if (m_swapChain) m_swapChain->Resize(w, h); 
-			if (m_viewport)  m_viewport->Resize(w, h);
-			if (m_document)  m_document->GetEditor().OnResize(w, h);
-				
+			if (m_swapChain) m_swapChain->Resize(w, h);
+			if (m_document)  m_document->Resize(w, h);
 			return 0;
 		}
 		case WM_SETCURSOR:
@@ -100,11 +105,10 @@ namespace MiniCAD
 			}
 			return DefWindowProc(hwnd, msg, wParam, lParam);
 		}
-
 		// ───────────── 输入消息交给 InputSystem ─────────────
-		case WM_MBUTTONDOWN: 
+		case WM_MBUTTONDOWN:
 		case WM_MBUTTONUP:
-		case WM_MOUSEMOVE:		
+		case WM_MOUSEMOVE:
 		case WM_LBUTTONDOWN:
 		case WM_LBUTTONUP:
 		case WM_RBUTTONDOWN:
@@ -112,8 +116,9 @@ namespace MiniCAD
 		case WM_MOUSEWHEEL:
 		case WM_KEYDOWN:
 		case WM_KEYUP:
-			m_input.Dispatch(hwnd, msg, wParam, lParam);
-			return 0; 
+			m_inputSystem.Dispatch(hwnd, msg, wParam, lParam);
+			return 0;
+
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			return 0;
@@ -190,51 +195,31 @@ namespace MiniCAD
 		SwapChain::Options opt;
 		opt.enableVSync = false;  // 禁止垂直同步，允许撕裂（仅限窗口模式）
 		opt.allowTearing = false; // 允许撕裂（仅限窗口模式）
-		 
+
+
 		m_swapChain->Initialize(m_device.get(), m_hwnd, width, height, opt);// 初始化交换链
 		m_renderer = std::make_unique<Renderer>(m_device->GetDevice(), m_device->GetContext());
+
 
 		return true;
 	}
 
-	bool MainWindow::InitViewportAndDocument(int width, int height)
-	{  
-		m_viewport = std::make_unique<Viewport>(m_renderer.get(), width, height); // 传入m_renderer
+	bool MainWindow::InitDocument(Renderer& renderer, int width, int height)
+	{
+		m_document = std::make_unique<Document>(renderer, width, height); 
 
-		m_document = std::make_unique<Document>(width, height);
-
-		m_viewport->SetCamera(m_document->GetScene().GetCamera()); // 设置相机
-
-		m_input.PushHandler(m_document.get());         // 先注册 Document，保证它优先处理输入事件
-
-		m_input.PushHandler(&m_document->GetEditor()); // 先注册 Document，保证它优先处理输入事件
-
-		// 添加一些测试数据
-		auto& scene = m_document->GetScene();
-		// 直线1
-		auto id = scene.NextObjectID();
-		auto entity = std::make_unique<LineEntity>(id,XMFLOAT3(1.5, 1.5, 0), XMFLOAT3(0, 0, 0));
-		entity->GetAttr().Color = XMFLOAT4(1, 1, 0, 1); 
-		scene.AddEntity(std::move(entity));
-
-		// 直线2
-		id = scene.NextObjectID();
-		entity = std::make_unique<LineEntity>(id, XMFLOAT3(0.5, 0.5, 0), XMFLOAT3(1, 0, 0));
-		entity->GetAttr().Color = XMFLOAT4(1, 0, 0, 1);
-		scene.AddEntity(std::move(entity));
+		m_inputSystem.PushHandler(m_document.get());  
 
 		return true;
 	}
 
 	void MainWindow::RenderFrame()
 	{
-		auto  target    = m_swapChain->GetRenderTarget(); 		 
-		auto& scene     = m_document->GetScene();
-		auto  viewState = m_document->GetEditor().BuildViewState();
-
-		m_viewport->RefreshRenderData(m_document->GetScene(), viewState);
-
-		m_viewport->Render(target);
+		auto target = m_swapChain->GetRenderTarget(); 
+ 
+		 
+		m_document->Render(target);
+	 
 
 		m_swapChain->Present();
 

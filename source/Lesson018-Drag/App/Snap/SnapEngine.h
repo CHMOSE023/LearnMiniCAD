@@ -2,22 +2,9 @@
 #include "SnapResult.h"
 #include "App/Scene/Scene.h"
 #include "Render/Viewport/Camera.h"
-#include <unordered_set>
 
 namespace MiniCAD
 {
-    struct SnapContext
-    {
-        DirectX::XMFLOAT2 screenPt;   // 鼠标屏幕坐标
-        DirectX::XMFLOAT3 rayOrigin;  // 可选（后续扩展）
-        DirectX::XMFLOAT3 rayDir;
-
-        Scene* scene = nullptr;
-        Camera* cam = nullptr;
-
-        std::unordered_set<Object::ObjectID> exclude;
-    };
-
     class SnapEngine
     {
     public:
@@ -32,12 +19,12 @@ namespace MiniCAD
         // ─── 主接口 ─────────────────────────────
         // screenPt: 鼠标屏幕坐标
         // 返回优先级最高的捕捉结果，无捕捉时 type == None（Grid 永远命中）
-        SnapResult Query(const SnapContext& ctx) const;
+        SnapResult Query(const DirectX::XMFLOAT2& screenPt, const Scene& scene, const Camera& cam) const;
 
     private:
-        SnapResult TryEndpoint(const SnapContext& ctx) const;
-        SnapResult TryMidpoint(const SnapContext& ctx) const;
-        SnapResult TryNearest (const SnapContext& ctx) const;
-        SnapResult TryGrid    (const SnapContext& ctx)         const;
+        SnapResult TryEndpoint(const DirectX::XMFLOAT2& sp, const Scene&, const Camera&) const;
+        SnapResult TryMidpoint(const DirectX::XMFLOAT2& sp, const Scene&, const Camera&) const;
+        SnapResult TryNearest (const DirectX::XMFLOAT2& sp, const Scene&, const Camera&) const;
+        SnapResult TryGrid    (const DirectX::XMFLOAT2& sp, const Camera&)               const;
     };
 }
