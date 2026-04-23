@@ -183,15 +183,22 @@ namespace MiniCAD
     {
         GripGeometry g;
 
-        const float size = 4.0f; // grip 半径（屏幕像素）
+        float size = 4.0f; // grip 半径（屏幕像素）
 
         for (const auto& grip : vs.Grips)
         {
             const float x = grip.Pos.x;
             const float y = grip.Pos.y;
 
-            DirectX::XMFLOAT4 color = { 0.0f, 0.2f, 0.9f, 0.9f };;
+            DirectX::XMFLOAT4 color       = { 0.0f, 0.2f, 0.9f, 0.9f }; 
+            DirectX::XMFLOAT4 borderColor = { 0.3,0.3,0.3,1 };
 
+            if (grip.Hovered)
+            {
+                color       = { 1.0f, 0.85f, 0.1f, 1.0f }; // 黄色（悬停）
+                borderColor = { 0.9,0.9,0.9,1 };
+                size        = 5.0;
+            } 
 
             // =========================
             // 1. 填充矩形（2 triangles）
@@ -206,7 +213,6 @@ namespace MiniCAD
             // =========================
             // 2. 边框（Line list）
             // =========================
-            DirectX::XMFLOAT4 borderColor = { 0.3,0.3,0.3,1 };
 
             g.border.insert(g.border.end(), {
                 {v0.pos, borderColor}, {v1.pos, borderColor},

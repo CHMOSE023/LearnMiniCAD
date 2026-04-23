@@ -118,38 +118,30 @@ namespace MiniCAD
         // 最近点 
         vs.Snap.SnapType = static_cast<SnapDraw::Type>(m_currentSnap.SnapType);
         vs.Snap.Pos      = m_viewport.GetCamera().WorldToScreen(m_currentSnap.WorldPos);
+        m_currentSnap    = {};// 获取后清零有残留
+
+        // 光标中间方框
+        vs.ShowCurrorBox = !m_editor.IsAcitveTool();
 
         // 夹点
-        vs.ShowCurrorBox = !m_editor.IsAcitveTool(); 
-        auto selectids   =  m_picking.GetSelection();  
-        for (const auto id : selectids)
-        {
-            auto entity = m_scene.GetEntity(id);
-            if (!entity) continue; 
+        vs.ShowGizmo = true;
+        if (vs.ShowGizmo)
+        { 
+            auto& hoveredIdxs = m_editor.GetGipEditor().HoveredGrips();
+            auto& grips = m_editor.GetGipEditor().GetGrips();
 
-            if (entity->IsKindOf<LineEntity>())
+            for (int i = 0; i < (int)grips.size(); ++i)
             {
-                auto line = static_cast<LineEntity*>(entity); 
-                auto camera = m_viewport.GetCamera();  
+                const auto& g = grips[i];
+                auto        s = m_viewport.GetCamera().WorldToScreen(g.WorldPos);
+                auto        type = static_cast<GripDraw::Type>(g.GripType);
 
-                GripDraw g1, g2, g3;
-                g1.Pos     = camera.WorldToScreen(line->GetLine().Start);;
-                g1.Type    = GripDraw::Type::Start;
-                g1.Hovered = false;
-                 
-                g2.Pos     = camera.WorldToScreen(line->GetLine().End);
-                g2.Type    = GripDraw::Type::End;
-                g2.Hovered = false; 
+                // 在列表里找，而不是判断单个 index
+                bool hovered = std::find(hoveredIdxs.begin(), hoveredIdxs.end(), i) != hoveredIdxs.end();
 
-                g3.Pos     = camera.WorldToScreen(line->GetLine().Midpoint());
-                g3.Type    = GripDraw::Type::Mid;
-                g3.Hovered = false;
-
-                vs.Grips.push_back(g1);
-                vs.Grips.push_back(g2);
-                vs.Grips.push_back(g3);
-            } 
-        }  
+                vs.Grips.push_back({ s, type, hovered });
+            }
+        } 
 
         return vs;
     }

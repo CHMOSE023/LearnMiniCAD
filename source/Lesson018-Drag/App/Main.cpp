@@ -9,7 +9,7 @@ int main()
 
 	MainWindow mainWindow;
 
-	mainWindow.Initialize(L"Lesson017-Snap",600,400);
+	mainWindow.Initialize(L"Lesson018-Drag",600,400);
 	mainWindow.Run();
 
 }

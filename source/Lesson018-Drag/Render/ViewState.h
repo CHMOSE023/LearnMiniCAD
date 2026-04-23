@@ -26,8 +26,8 @@ namespace MiniCAD
         };
 
         DirectX::XMFLOAT2 Pos;
-        Type              Type;
-        bool              Hovered;
+        Type              GripType;
+        bool              Hovered; // 悬浮上方的
     };
 
     struct SnapDraw

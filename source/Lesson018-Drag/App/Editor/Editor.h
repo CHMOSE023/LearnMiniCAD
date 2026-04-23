@@ -9,7 +9,8 @@
 #include <unordered_set> 
 #include <memory>
 #include "App/Snap/SnapEngine.h"
-#include "App/Snap/SnapResult.h"
+#include "App/Snap/SnapResult.h" 
+#include "App/Grip/GripEditor.h"
 namespace MiniCAD
 {
 	class Editor  
@@ -22,6 +23,8 @@ namespace MiniCAD
 		const std::unordered_set<Object::ObjectID>& GetSelection();
 		const std::unordered_set<Object::ObjectID>& GetHovered();
 		const bool IsAcitveTool() { return m_tool != nullptr; };  
+
+		GripEditor& GetGipEditor() { return m_gripEditor; };
 
 	private:
 		bool HandleGlobal(const InputEvent& e);
@@ -41,6 +44,8 @@ namespace MiniCAD
 		std::unique_ptr<ITool>   m_tool;
 
 		SnapEngine&   m_snap;
-		SnapResult&   m_currentSnap;
+		SnapResult&   m_currentSnap; 
+
+		GripEditor    m_gripEditor;    // 新增
 	};
 }

@@ -2,6 +2,8 @@
 #include "SnapResult.h"
 #include "App/Scene/Scene.h"
 #include "Render/Viewport/Camera.h"
+#include "Core/Object/Object.hpp"
+#include <unordered_set>
 
 namespace MiniCAD
 {
@@ -17,14 +19,19 @@ namespace MiniCAD
         float SnapRadiusPx   = 12.f;   // 屏幕像素捕捉半径
 
         // ─── 主接口 ─────────────────────────────
-        // screenPt: 鼠标屏幕坐标
-        // 返回优先级最高的捕捉结果，无捕捉时 type == None（Grid 永远命中）
-        SnapResult Query(const DirectX::XMFLOAT2& screenPt, const Scene& scene, const Camera& cam) const;
+        // exclude: 需要跳过的对象（夹点拖拽时传入当前选中集合，避免捕捉自身）
+        SnapResult Query(const DirectX::XMFLOAT2&                        screenPt,
+                         const Scene&                                    scene,
+                         const Camera&                                   cam,
+                         const std::unordered_set<Object::ObjectID>&     exclude = {}) const;
 
     private:
-        SnapResult TryEndpoint(const DirectX::XMFLOAT2& sp, const Scene&, const Camera&) const;
-        SnapResult TryMidpoint(const DirectX::XMFLOAT2& sp, const Scene&, const Camera&) const;
-        SnapResult TryNearest (const DirectX::XMFLOAT2& sp, const Scene&, const Camera&) const;
-        SnapResult TryGrid    (const DirectX::XMFLOAT2& sp, const Camera&)               const;
+        SnapResult TryEndpoint(const DirectX::XMFLOAT2& sp, const Scene&, const Camera&,
+                               const std::unordered_set<Object::ObjectID>& exclude) const;
+        SnapResult TryMidpoint(const DirectX::XMFLOAT2& sp, const Scene&, const Camera&,
+                               const std::unordered_set<Object::ObjectID>& exclude) const;
+        SnapResult TryNearest (const DirectX::XMFLOAT2& sp, const Scene&, const Camera&,
+                               const std::unordered_set<Object::ObjectID>& exclude) const;
+        SnapResult TryGrid    (const DirectX::XMFLOAT2& sp, const Camera&) const;
     };
 }

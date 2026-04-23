@@ -4,7 +4,7 @@
 #include <memory>
 namespace MiniCAD
 {
-	class Scene;
+    class Scene;
     class CommandStack
     {
     public:
@@ -12,6 +12,8 @@ namespace MiniCAD
         void Undo(Scene& scene);
         void Redo(Scene& scene);
 
+        // Push = 只入栈，不执行（例如:拖拽这种“已经发生”的操作）
+        void Push(std::unique_ptr<ICommand> cmd);
         bool CanUndo() const { return !m_undoStack.empty(); }
         bool CanRedo() const { return !m_redoStack.empty(); }
 
