@@ -5,7 +5,7 @@
 
 namespace MiniCAD
 {
-    class ISerializer;  
+    class ISerializer;
     using LayerID = uint32_t;
     class Layer
     {
@@ -16,8 +16,8 @@ namespace MiniCAD
         static constexpr LayerID DefaultLayerID = 0;
 
         LayerID                   GetID()      const;
-        const std::string&        GetName()    const;
-        const DirectX::XMFLOAT4&  GetColor()   const;
+        const std::string& GetName()    const;
+        const DirectX::XMFLOAT4& GetColor()   const;
         bool                      IsVisible()  const;
         bool                      IsLocked()   const;
 
@@ -32,8 +32,8 @@ namespace MiniCAD
     private:
         LayerID            m_id = 0;
         std::string        m_name;
-        DirectX::XMFLOAT4  m_color{1,1,1,1};
+        DirectX::XMFLOAT4  m_color{ 1,1,1,1 };
         bool               m_visible = true;
-        bool               m_locked  = false;
+        bool               m_locked = false;
     };
 }

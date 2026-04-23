@@ -4,9 +4,9 @@
 #include <memory>
 namespace MiniCAD
 {
-	class Scene;
-	class CommandStack
-	{ 
+    class Scene;
+    class CommandStack
+    {
     public:
         void Execute(std::unique_ptr<ICommand> cmd, Scene& scene);
         void Undo(Scene& scene);
@@ -23,5 +23,5 @@ namespace MiniCAD
         std::stack<std::unique_ptr<ICommand>> m_undoStack;
         std::stack<std::unique_ptr<ICommand>> m_redoStack;
 
-	};
+    };
 }

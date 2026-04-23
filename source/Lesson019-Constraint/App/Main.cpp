@@ -1,5 +1,5 @@
+#include "pch.h"
 #include "MainWindow.h"
-
 using namespace MiniCAD;
 int main()
 {
@@ -9,7 +9,7 @@ int main()
 
 	MainWindow mainWindow;
 
-	mainWindow.Initialize(L"Lesson018-Drag 拖拽捕获",600,400);
+	mainWindow.Initialize(L"Lesson019-Constraint 正交约束 ",600,400);
 	mainWindow.Run();
 
 }
