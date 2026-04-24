@@ -172,14 +172,13 @@ namespace MiniCAD
                             return idx;
                         };
 
-                    ImU32 lineCol = IM_COL32(200, 200, 50, 255);
-                    ImU32 extCol = IM_COL32(200, 200, 50, 120); // 出头部分（淡）
+                    ImU32 lineCol  = IM_COL32(200, 200, 50, 255);
+                    ImU32 extCol   = IM_COL32(200, 200, 50, 120);
                     ImU32 bubbleBg = IM_COL32(30, 30, 30, 230);
                     ImU32 bubbleFg = IM_COL32(220, 200, 60, 255);
-                    ImU32 dimCol = IM_COL32(100, 220, 255, 220);
-                    ImU32 tickCol = IM_COL32(100, 220, 255, 140);
+                    ImU32 dimCol   = IM_COL32(100, 220, 255, 220);
+                    ImU32 tickCol  = IM_COL32(100, 220, 255, 140);
 
-                    // ── 辅助：画轴号圆泡 ──────────────────────────────────
                     auto drawBubble = [&](float cx, float cy, const std::string& name)
                         {
                             dl->AddCircleFilled(ImVec2(cx, cy), BUBBLE_R, bubbleBg);
@@ -188,7 +187,6 @@ namespace MiniCAD
                             dl->AddText(ImVec2(cx - tsz.x * 0.5f, cy - tsz.y * 0.5f), bubbleFg, name.c_str());
                         };
 
-                    // ── 绘制轴线 + 出头 + 圆泡 ───────────────────────────
                     for (size_t i = 0; i < axes.size(); ++i)
                     {
                         if (!axes[i].visible) continue;
@@ -297,46 +295,65 @@ namespace MiniCAD
                 ImGui::NextColumn();
 
                 // ════════════════════════════════════════════════════════════
-                // 右侧轴表
+                // 右侧轴表（使用 BeginTable 替换旧版 Columns，支持拖拽调整列宽）
                 // ════════════════════════════════════════════════════════════
                 ImGui::BeginChild("AxisTable", ImVec2(0, 400), false);
                 {
-                    ImGui::Columns(5, "atc");
-                    ImGui::SetColumnWidth(0, 60); ImGui::SetColumnWidth(1, 50);
-                    ImGui::SetColumnWidth(2, 80); ImGui::SetColumnWidth(3, 40);
-                    ImGui::Text("名称");    ImGui::NextColumn();
-                    ImGui::Text("方向");    ImGui::NextColumn();
-                    ImGui::Text("位置(m)"); ImGui::NextColumn();
-                    ImGui::Text("显示");    ImGui::NextColumn();
-                    ImGui::Text("操作");    ImGui::NextColumn();
-                    ImGui::Separator();
-
                     bool needSync = false;
-                    for (int i = 0; i < (int)axes.size(); ++i)
+
+                    if (ImGui::BeginTable("atc", 5,
+                        ImGuiTableFlags_Resizable |
+                        ImGuiTableFlags_BordersInnerV |
+                        ImGuiTableFlags_ScrollY,
+                        ImVec2(0, 0)))
                     {
-                        ImGui::TextUnformatted(axes[i].name.c_str()); ImGui::NextColumn();
-                        ImGui::TextUnformatted(axes[i].vertical ? "纵" : "横"); ImGui::NextColumn();
-                        ImGui::PushID(i);
-                        ImGui::PushItemWidth(-1);
-                        if (ImGui::InputFloat("##p", &axes[i].realPos, 0.5f, 1.0f, "%.2f")) needSync = true;
-                        ImGui::PopItemWidth(); ImGui::NextColumn();
-                        if (ImGui::Checkbox("##v", &axes[i].visible)) {}
-                        ImGui::NextColumn();
-                        if (ImGui::SmallButton("中")) { axes[i].realPos = 0.0f; needSync = true; }
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("X"))
+                        ImGui::TableSetupColumn("名称", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+                        ImGui::TableSetupColumn("方向", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+                        ImGui::TableSetupColumn("位置(m)", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+                        ImGui::TableSetupColumn("显示", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+                        ImGui::TableSetupColumn("操作", ImGuiTableColumnFlags_WidthStretch);
+                        ImGui::TableHeadersRow();
+
+                        for (int i = 0; i < (int)axes.size(); ++i)
                         {
-                            axes.erase(axes.begin() + i);
-                            ImGui::PopID(); needSync = true; break;
+                            ImGui::TableNextRow();
+                            ImGui::PushID(i);
+
+                            ImGui::TableSetColumnIndex(0);
+                            ImGui::TextUnformatted(axes[i].name.c_str());
+
+                            ImGui::TableSetColumnIndex(1);
+                            ImGui::TextUnformatted(axes[i].vertical ? "纵" : "横");
+
+                            ImGui::TableSetColumnIndex(2);
+                            ImGui::PushItemWidth(-1);
+                            if (ImGui::InputFloat("##p", &axes[i].realPos, 0.5f, 1.0f, "%.2f"))
+                                needSync = true;
+                            ImGui::PopItemWidth();
+
+                            ImGui::TableSetColumnIndex(3);
+                            ImGui::Checkbox("##v", &axes[i].visible);
+
+                            ImGui::TableSetColumnIndex(4);
+                            if (ImGui::SmallButton("中")) { axes[i].realPos = 0.0f; needSync = true; }
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("X"))
+                            {
+                                axes.erase(axes.begin() + i);
+                                ImGui::PopID();
+                                needSync = true;
+                                break;
+                            }
+
+                            ImGui::PopID();
                         }
-                        ImGui::NextColumn();
-                        ImGui::PopID();
+
+                        ImGui::EndTable();
                     }
 
                     // 间距一览
                     if (!axes.empty())
                     {
-                        ImGui::Columns(1);
                         ImGui::Separator();
                         ImGui::TextColored(ImVec4(0.4f, 0.85f, 1.0f, 1.0f), "间距一览");
 
