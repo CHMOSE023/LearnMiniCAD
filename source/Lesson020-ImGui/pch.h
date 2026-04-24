@@ -10,16 +10,13 @@
 #include <DirectXMath.h>
 #include <DirectXColors.h>
 #include <wrl/client.h>
-#include <dxgi1_3.h> 
+#include <dxgi1_3.h>
+#include <dxgi1_6.h>
 #include <d3d11.h> 
 #include <vector>
 #include <memory>
 #include <stdexcept>
-#include <cstdio> 
-#include <algorithm> 
-
-#undef min
-#undef max
+#include <cstdio>
 
 #ifndef ThrowIfFailed
 inline void ThrowIfFailed(HRESULT hr)

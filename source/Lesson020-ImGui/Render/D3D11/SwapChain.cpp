@@ -1,4 +1,4 @@
-#include "SwapChain.h"
+﻿#include "SwapChain.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -81,8 +81,8 @@ namespace MiniCAD
 
         m_viewport.TopLeftX = 0;
         m_viewport.TopLeftY = 0;
-        m_viewport.Width    = static_cast<float>(m_width);
-        m_viewport.Height   = static_cast<float>(m_height);
+        m_viewport.Width = static_cast<float>(m_width);
+        m_viewport.Height = static_cast<float>(m_height);
         m_viewport.MinDepth = 0.0f;
         m_viewport.MaxDepth = 1.0f;
 

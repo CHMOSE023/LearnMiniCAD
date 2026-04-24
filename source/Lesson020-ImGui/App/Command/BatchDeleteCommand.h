@@ -23,7 +23,9 @@ namespace MiniCAD
             {
                 auto entity = scene.RemoveEntity(id);
                 if (entity) m_saved.push_back(std::move(entity));
-            }
+            } 
+
+            scene.MarkDirty();
         }
 
         void Undo(Scene& scene) override
@@ -32,6 +34,8 @@ namespace MiniCAD
             for (int i = (int)m_saved.size() - 1; i >= 0; --i)
                 scene.AddEntity(std::move(m_saved[i]));
             m_saved.clear();
+
+            scene.MarkDirty();
         }
 
         std::string GetName() const override { return "批量删除实体"; }

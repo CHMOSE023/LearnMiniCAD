@@ -3,15 +3,13 @@
 
 namespace MiniCAD
 {
+    class Document;
     class ImGuiWidgetBase
     {
     public:
-        virtual ~ImGuiWidgetBase() = default;
+        virtual ~ImGuiWidgetBase() = default;  
 
-        virtual void OnRender() = 0;
-
+        virtual void        OnRender(Document& document) = 0;
         virtual const char* GetName() const = 0;
-
-        bool Visible = true;
     };
 }

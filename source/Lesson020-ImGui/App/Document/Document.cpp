@@ -1,79 +1,169 @@
-#include "Document.h"
-#include "Serialization/AsciiSerializer.h"
-#include <fstream>
+#include "Document.h"    
+#include "Render/D3D11/Renderer.h"
+#include "Core/Entity/LineEntity.hpp"
+#include "Core/Object/Object.hpp"
+#include <vector> 
+#include <memory>
+#include <utility>
 namespace MiniCAD
 {
-    Document::Document(float width, float height)
+    Document::Document(Renderer& render, float width, float height)
+        : m_scene()
+        , m_cmdStack()
+        , m_overlay()
+        , m_viewport(render, width, height)
+        , m_picking(m_scene, m_viewport)
+        , m_snap()
+        , m_currentSnap() 
+        , m_editor(m_scene, m_cmdStack, m_viewport, m_overlay,m_picking, m_snap, m_currentSnap)
     {
-        m_scene    = std::make_unique<Scene>(width, height);
+      
+    }
 
-        m_cmdStack = std::make_unique<CommandStack>();
+    bool Document::OnInput(const InputEvent& e)
+    {   
+        m_mouseX = e.MouseX; // 保存鼠标位置
+        m_mouseY = e.MouseY; 
+        return m_editor.OnInput(e); 
+    }
 
-        m_editor   = std::make_unique<Editor>(m_scene.get(), m_cmdStack.get());
-    } 
-    
-    bool Document::OnInput(const InputEvent& e) 
+    void Document::Resize(float width, float height)
+    {
+        m_viewport.Resize(width, height);
+    }
+
+    void Document::Render(const RenderTarget& target)
     { 
-        // 只处理键盘按下事件
-        if (e.Type == InputEventType::KeyDown)
-        { 
-            if (e.KeyCode == 'S' && e.HasModifier(ModifierKey::Ctrl))  // 判断 Ctrl+S
-            { 
-                // MessageBox(0, L"Ctrl+S", L"保存文件", 0);
-                Save("autosave.cad"); // 保存文档（可改成实际路径或弹窗选择）
-                return true; // 拦截事件
-            }
-           
-            if (e.KeyCode == 'O' && e.HasModifier(ModifierKey::Ctrl))  // 判断 Ctrl+O
+        m_overlayVertices.clear();
+
+        UpdateSceneVerties();
+
+        // 判断是否需要绘制约束辅助线 
+
+        if (m_editor.GetGipEditor().IsDragging())
+        {
+            if (m_editor.IsOrthoEnabled()) // 1.正交 显示约束线
             {
-                // MessageBox(0, L"Ctrl+O", L"打开文件", 0);
-                Load("autosave.cad"); // 保存文档（可改成实际路径或弹窗选择）                 
-                return true; // 拦截事件
+                const Line& anchorLine = m_editor.GetAnchorLine();
+
+                m_overlay.AddLine(anchorLine.Start, anchorLine.End, { 0.1, 0.7, 0.1,0.6 });
             }
-            
+            else                          //  2.拖动 显示原来位置
+            {
+                for (const auto& entry : m_editor.GetGipEditor().GetDragEntries())
+                {
+                    m_overlay.AddLine(entry.Base.Start, entry.Base.End, { 0.6, 0.6, 0.6,0.6 });
+                }
+            }
         }
 
-        // 其他输入交给 Editor 处理
-        if (m_editor)
-            return m_editor->OnInput(e);
+           
+        m_overlay.ToVertices(m_overlayVertices);      // 每帧分配 
 
-        return false;
-    }
-
-    void Document::Save(const std::string& path)
-    {
-        std::ofstream ofs(path, std::ios::binary);
-        if (!ofs.is_open())
-        {
-            throw std::runtime_error("无法打开文件保存");
-        }
-
-        // 创建序列化器
-        AsciiSerializer serializer(ofs);
-
-        // 保存场景
-        m_scene->Serialize(serializer); 
-
-        ofs.close();
+        auto vs = BuildViewState();
+        m_viewport.Render(target, vs);
          
+    } 
+      
+    void Document::UpdateSceneVerties()
+    { 
+        if (!m_scene.IsDirty() && !m_picking.IsDirty())
+            return;
+         
+        m_sceneVertices.clear();
+        m_overlay.Clear();  
+
+        const auto& hoverIds     = m_picking.GetHovered();
+        const auto& selectionIds = m_picking.GetSelection();
+
+        const DirectX::XMFLOAT4 hoverColor     = { 0,  0.5, 0.8, 0.9 };
+        const DirectX::XMFLOAT4 selectionColor = { 0,  0.3, 0.8, 0.9 };
+
+        m_scene.ForEachObject([&](const Object& obj)
+            {
+                if (!obj.IsKindOf<LineEntity>())
+                    return;
+
+                const auto& line = static_cast<const LineEntity&>(obj);
+                const auto& attr = line.GetAttr();
+                const auto& geom = line.GetLine();
+
+                const auto id = obj.GetID();
+
+                const bool isSelected = selectionIds.contains(id);
+                const bool isHovered = hoverIds.contains(id);
+
+                // ===== Base：只画普通 =====
+                if (!isSelected && !isHovered)
+                {
+                    m_sceneVertices.push_back({ geom.Start, attr.Color });
+                    m_sceneVertices.push_back({ geom.End,   attr.Color });
+                }
+
+                // ===== Overlay：画高亮 =====
+                if (isSelected)
+                { 
+                    m_overlay.AddLine(geom.Start, geom.End, selectionColor);
+                }
+                else if (isHovered)
+                { 
+                    m_overlay.AddLine(geom.Start, geom.End, hoverColor);
+                }
+            });
+
+        m_scene.ClearDirty();
+        m_picking.ClearDirty(); 
     }
 
-    void Document::Load(const std::string& path)
+    ViewState Document::BuildViewState()
     {
-        std::ifstream ifs(path, std::ios::binary);
-        if (!ifs.is_open())
-        {
-            throw std::runtime_error("无法打开文件加载");
-        }
+        ViewState vs; 
 
-        AsciiSerializer serializer(ifs);
+        // 场景点
+        vs.Scene            = m_sceneVertices;
+        vs.Overlay          = m_overlayVertices; 
 
-        m_scene->Deserialize(serializer);    // 清空旧数据并加载   
-        m_cmdStack->Clear();                 // 加载后清空命令栈和选择状态
+        // 选择范围框
+        vs.Selection.Active = m_picking.IsBoxSelecting();
+        vs.Selection.Start  = m_picking.GetBoxStart();
+        vs.Selection.End    = m_picking.GetBoxEnd();  
+        
+        // 光标位置
+        vs.MouseX    = static_cast<float>(m_mouseX);
+        vs.MouseY    = static_cast<float>(m_mouseY);  
 
-        //m_editor->ClearSelection();
+        // 辅助网格
+        vs.ShowGrid  = true;  
 
-        ifs.close();
+        // 最近点 
+        vs.Snap.SnapType = static_cast<SnapDraw::Type>(m_currentSnap.SnapType);
+        vs.Snap.Pos      = m_viewport.GetCamera().WorldToScreen(m_currentSnap.WorldPos);
+        m_currentSnap    = {};// 获取后清零有残留
+
+        // 光标中间方框
+        vs.ShowCurrorBox = !m_editor.IsAcitveTool();
+
+        // 夹点
+        vs.ShowGizmo = true;
+        if (vs.ShowGizmo)
+        { 
+            auto& hoveredIdxs = m_editor.GetGipEditor().HoveredGrips();
+            auto& grips = m_editor.GetGipEditor().GetGrips();
+
+            for (int i = 0; i < (int)grips.size(); ++i)
+            {
+                const auto& g = grips[i];
+                auto        s = m_viewport.GetCamera().WorldToScreen(g.WorldPos);
+                auto        type = static_cast<GripDraw::Type>(g.GripType);
+
+                // 在列表里找，而不是判断单个 index
+                bool hovered = std::find(hoveredIdxs.begin(), hoveredIdxs.end(), i) != hoveredIdxs.end();
+
+                vs.Grips.push_back({ s, type, hovered });
+            }
+        } 
+
+        return vs;
     }
-
+ 
 }
