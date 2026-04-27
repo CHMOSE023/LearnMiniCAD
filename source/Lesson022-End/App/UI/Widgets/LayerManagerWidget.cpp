@@ -9,24 +9,37 @@
 
 namespace MiniCAD
 {
+    LayerManagerWidget::LayerManagerWidget() { m_id = "layer_manager_widget"; }
 
     // ─────────────────────────────────────────────────────────────────────────────
     //  OnRender
     // ─────────────────────────────────────────────────────────────────────────────
     void LayerManagerWidget::OnRender(Document& document)
-    {
+    { 
         LayerManager& mgr = document.GetLayerManager();
+          
+        if (!m_visible)
+            return;
 
-        bool windowVisible = ImGui::Begin(GetName());
+        bool open = m_visible;
 
-        if (windowVisible)
+        if (!ImGui::Begin(GetName(), &open))
+        {
+            ImGui::End();
+            return;
+        }
+
+        if (!open)  // 如果用户点了右上角关闭
+            m_visible = false; 
+
+        if (m_visible)
         {
             RenderToolbar(mgr);
             ImGui::Separator();
             RenderLayerList(mgr);
         }
 
-        RenderAddDialog(mgr);
+        RenderAddDialog(mgr); 
 
         ImGui::End();
     }
@@ -63,15 +76,12 @@ namespace MiniCAD
     // ─────────────────────────────────────────────────────────────────────────────
     void LayerManagerWidget::RenderLayerList(LayerManager& mgr)
     {
-        constexpr ImGuiTableFlags tableFlags =
-            ImGuiTableFlags_RowBg |
-            ImGuiTableFlags_BordersInnerV |
-            ImGuiTableFlags_ScrollY |
-            ImGuiTableFlags_Resizable |
-            ImGuiTableFlags_SizingStretchProp;
-
-        // const float  rowHeight = ImGui::GetTextLineHeightWithSpacing();
-        // const ImVec2 outerSize{ 0.f, rowHeight * 12.f };
+        constexpr ImGuiTableFlags tableFlags = ImGuiTableFlags_RowBg            |
+                                               ImGuiTableFlags_BordersInnerV    |
+                                               ImGuiTableFlags_ScrollY          |
+                                               ImGuiTableFlags_Resizable        |
+                                               ImGuiTableFlags_SizingStretchProp;
+         
         const ImVec2 outerSize{ 0.f, ImGui::GetContentRegionAvail().y };
 
         if (!ImGui::BeginTable("LayerTable", 4, tableFlags, outerSize))
@@ -130,7 +140,7 @@ namespace MiniCAD
                 if (ImGui::IsItemClicked())
                 {
                     m_colorPickerLayerID = id;
-                    m_colorPickerShouldOpen = true; // ⭐ 只标记，EndTable 后统一 OpenPopup
+                    m_colorPickerShouldOpen = true; // 只标记，EndTable 后统一 OpenPopup
                 }
             }
 
@@ -226,10 +236,7 @@ namespace MiniCAD
 
         ImGui::EndTable();
 
-        // ── Color Picker Popup ───────────────────────────────────────────────────
-        //
-        // ⭐ OpenPopup 必须与 BeginPopup 在同一 ID 栈层级（EndTable / PopID 之后），
-        //    且只在点击那一帧调用一次，避免每帧重复打开对抗 ImGui 的自动关闭逻辑。
+        // ── Color Picker Popup ─────────────────────────────────────────────────── 
         if (m_colorPickerShouldOpen)
         {
             ImGui::OpenPopup("LayerColorPicker");

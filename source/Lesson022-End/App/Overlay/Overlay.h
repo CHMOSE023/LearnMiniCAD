@@ -4,6 +4,7 @@
 #include <functional>
 #include "Core/Object/Object.hpp"
 #include "Render/D3D11/Shader.h" 
+#include "Render/Viewport/Viewport.h" 
 
 namespace MiniCAD
 {
@@ -13,6 +14,11 @@ namespace MiniCAD
     class Overlay
     {
     public:
+        Overlay(Viewport& viewport) 
+            :m_viewport(viewport)
+        {
+        };
+
         // 清空
         void Clear()
         {
@@ -44,10 +50,35 @@ namespace MiniCAD
                 out.push_back({ l.b, l.color });
             }
 
-            // Points -> single vertex
-            for (const auto& p : m_points)
+            // Points 
+            for (const auto& pt : m_points)
             {
-                out.push_back({ p.p, p.color });
+                // 生成圆
+                const float radius   = 6.0f;
+                const int   segments = 24;
+
+                auto camera = m_viewport.GetCamera();
+
+                auto point = camera.WorldToScreen(pt.p);
+
+                for (int i = 0; i < segments; ++i)
+                {
+                    float a0 = (i / (float)segments) * DirectX::XM_2PI;
+                    float a1 = ((i + 1) / (float)segments) * DirectX::XM_2PI;
+
+                    XMFLOAT2 p0 = {
+                        point.x + cosf(a0) * radius,
+                        point.y + sinf(a0) * radius, 
+                    };
+
+                    XMFLOAT2 p1 = {
+                         point.x + cosf(a1) * radius,
+                         point.y + sinf(a1) * radius, 
+                    }; 
+
+                    out.push_back({ camera.ScreenToWorld(p0.x, p0.y) , pt.color });
+                    out.push_back({ camera.ScreenToWorld(p1.x, p1.y), pt.color });
+                }
             }
         }
 
@@ -74,5 +105,9 @@ namespace MiniCAD
     private:
         std::vector<Line>  m_lines;
         std::vector<Point> m_points;
+
+    private:
+
+        Viewport& m_viewport;
     }; 
 }

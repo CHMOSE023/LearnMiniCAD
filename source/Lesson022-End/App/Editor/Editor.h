@@ -35,8 +35,9 @@ namespace MiniCAD
 
 		const bool IsAcitveTool() { return m_tool != nullptr; };  
 		 
-		// ── 绘制线 ───────────────────────────────────────
-		void StartLineTool();
+		// ── 工具 ───────────────────────────────────────
+		void StartLineTool();  // 绘制线
+		void StartPointTool(); // 绘制点
 		// ── 删除选中实体 ──────────────────────────────────
 		void DeleteSelected();  
 		   

@@ -10,7 +10,7 @@ namespace MiniCAD
     class LayerManagerWidget : public ImGuiWidgetBase
     {
     public:
-        LayerManagerWidget() = default;
+        LayerManagerWidget();
 
         void        OnRender(Document& document) override;
         const char* GetName() const override { return "图层管理"; }

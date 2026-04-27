@@ -1,5 +1,6 @@
 #include "SnapEngine.h"
 #include "Core/Entity/LineEntity.hpp"
+#include "Core/Entity/PointEntity.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -33,7 +34,7 @@ namespace MiniCAD
     {
         if (EnableEndpoint) { auto r = TryEndpoint(sp, scene, cam, exclude); if (r.IsValid()) return r; }
         if (EnableMidpoint) { auto r = TryMidpoint(sp, scene, cam, exclude); if (r.IsValid()) return r; }
-        if (EnableNearest) { auto r = TryNearest(sp, scene, cam, exclude); if (r.IsValid()) return r; }
+        if (EnableNearest)  { auto r = TryNearest (sp, scene, cam, exclude); if (r.IsValid()) return r; }
         if (EnableGrid)     return TryGrid(sp, cam);
         return {};
     }
@@ -48,20 +49,38 @@ namespace MiniCAD
 
         scene.ForEachObject([&](const Object& obj)
             {
-                if (exclude.contains(obj.GetID())) return;  // ← 跳过选中对象
+                if (exclude.contains(obj.GetID())) return;  //  跳过选中对象
 
-                auto* line = dynamic_cast<const LineEntity*>(&obj);
-                if (!line) return;
-
-                for (const XMFLOAT3& wp : { line->GetLine().Start, line->GetLine().End })
+                if (obj.IsKindOf<LineEntity>())
                 {
-                    float d = Dist2D(sp, cam.WorldToScreen(wp));
-                    if (d < SnapRadiusPx && d < bestDist)
+                    auto* line = static_cast<const LineEntity*>(&obj);
+                    if (!line) return;
+
+                    for (const XMFLOAT3& wp : { line->GetLine().Start, line->GetLine().End })
                     {
-                        bestDist = d;
-                        best = { SnapResult::Type::Endpoint, wp, obj.GetID() };
+                        float d = Dist2D(sp, cam.WorldToScreen(wp));
+                        if (d < SnapRadiusPx && d < bestDist)
+                        {
+                            bestDist = d;
+                            best = { SnapResult::Type::Endpoint, wp, obj.GetID() };
+                        }
                     }
                 }
+
+                if (obj.IsKindOf<PointEntity>())
+                {
+                    auto* point = static_cast<const PointEntity*>(&obj);
+                    if (!point) return;
+
+                    auto& p = point->GetPoint();
+
+                    float d = Dist2D(sp, cam.WorldToScreen(p.Position));  // 计算距离
+                    if (d < SnapRadiusPx && d < bestDist)                 // 双重判断
+                    {
+                        bestDist = d;
+                        best = { SnapResult::Type::Endpoint, p.Position, obj.GetID() };
+                    }  
+                } 
             });
 
         return best;
@@ -77,20 +96,25 @@ namespace MiniCAD
 
         scene.ForEachObject([&](const Object& obj)
             {
-                if (exclude.contains(obj.GetID())) return;  // ← 跳过选中对象
+                if (exclude.contains(obj.GetID())) return;  // 跳过选中对象
 
-                auto* line = dynamic_cast<const LineEntity*>(&obj);
-                if (!line) return;
-
-                auto& L = line->GetLine();
-                XMFLOAT3 mid = { (L.Start.x + L.End.x) * 0.5f, (L.Start.y + L.End.y) * 0.5f, 0.f };
-
-                float d = Dist2D(sp, cam.WorldToScreen(mid));
-                if (d < SnapRadiusPx && d < bestDist)
+                if (obj.IsKindOf<LineEntity>())
                 {
-                    bestDist = d;
-                    best = { SnapResult::Type::Midpoint, mid, obj.GetID() };
+                    auto* line = static_cast<const LineEntity*>(&obj);
+                    if (!line) return;
+
+                    auto& L = line->GetLine();
+                    XMFLOAT3 mid = { (L.Start.x + L.End.x) * 0.5f, (L.Start.y + L.End.y) * 0.5f, 0.f };
+
+                    float d = Dist2D(sp, cam.WorldToScreen(mid));
+                    if (d < SnapRadiusPx && d < bestDist)
+                    {
+                        bestDist = d;
+                        best = { SnapResult::Type::Midpoint, mid, obj.GetID() };
+                    }
                 }
+              
+               
             });
 
         return best;
@@ -108,20 +132,25 @@ namespace MiniCAD
 
         scene.ForEachObject([&](const Object& obj)
             {
-                if (exclude.contains(obj.GetID())) return;  // ← 跳过选中对象
+                if (exclude.contains(obj.GetID())) return;  // 跳过选中对象
 
-                auto* line = dynamic_cast<const LineEntity*>(&obj);
-                if (!line) return;
-
-                auto& L = line->GetLine();
-                XMFLOAT3 closest = ClosestPointOnSegment(worldMouse, L.Start, L.End);
-
-                float d = Dist2D(sp, cam.WorldToScreen(closest));
-                if (d < SnapRadiusPx && d < bestDist)
+                if (obj.IsKindOf<LineEntity>())
                 {
-                    bestDist = d;
-                    best = { SnapResult::Type::Nearest, closest, obj.GetID() };
-                }
+                    auto* line = static_cast<const LineEntity*>(&obj);
+                    if (!line) return;
+
+                    auto& L = line->GetLine();
+                    XMFLOAT3 closest = ClosestPointOnSegment(worldMouse, L.Start, L.End);
+
+                    float d = Dist2D(sp, cam.WorldToScreen(closest));
+                    if (d < SnapRadiusPx && d < bestDist)
+                    {
+                        bestDist = d;
+                        best = { SnapResult::Type::Nearest, closest, obj.GetID() };
+                    }
+
+                }   
+
             });
 
         return best;

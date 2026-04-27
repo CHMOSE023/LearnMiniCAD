@@ -1,6 +1,7 @@
 #include "Menubar.h"
 #include <imgui.h>
 #include "App/Document/Document.h"
+#include "App/UI/UIManager.h"
 namespace MiniCAD
 {
     const char* Menubar::GetName() const
@@ -48,11 +49,36 @@ namespace MiniCAD
 
             if (ImGui::BeginMenu("视图"))
             {
-                ImGui::MenuItem("场景", "默认", false, false);
-                ImGui::MenuItem("特性", "Ctrl+P", false, false);
-                ImGui::Separator();
-                ImGui::MenuItem("工具栏", "Ctrl+T", false, false);
-                ImGui::MenuItem("资源管理器", "Ctrl+E", false, false);
+               
+                if (auto* toolBar = m_ui->FindWidget("tool_bar"))
+                {
+                    bool v = toolBar->IsVisible();
+                    if (ImGui::MenuItem("工具栏", nullptr, v))
+                        toolBar->SetVisible(!v);
+                }
+
+                if (auto* toolBar = m_ui->FindWidget("property_panel"))
+                {
+                    bool v = toolBar->IsVisible();
+                    if (ImGui::MenuItem("特性", nullptr, v))
+                        toolBar->SetVisible(!v);
+                } 
+
+                if (auto* layer = m_ui->FindWidget("layer_manager_widget"))
+                {
+                    bool v = layer->IsVisible();
+                    if (ImGui::MenuItem("图层管理", nullptr, v))
+                        layer->SetVisible(!v);
+                }
+
+                if (auto* statusBar = m_ui->FindWidget("status_bar"))
+                {
+                    bool v = statusBar->IsVisible();
+                    if (ImGui::MenuItem("状态栏", nullptr, v))
+                        statusBar->SetVisible(!v);
+                }
+
+
                 ImGui::EndMenu();
             }
 

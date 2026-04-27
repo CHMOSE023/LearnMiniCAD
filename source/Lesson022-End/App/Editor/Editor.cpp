@@ -1,5 +1,6 @@
 #include "Editor.h"
 #include "App/Tools/LineTool.h"
+#include "App/Tools/PointTool.h"
 #include "App/CommandStack/CommandStack.h"
 #include "App/Command/BatchDeleteCommand.h"
 #include "App/Scene/Scene.h"
@@ -191,7 +192,7 @@ namespace MiniCAD
 
     // ─────────────────────────────────────────────
     //  StartLineTool
-    // ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────    
     void Editor::StartLineTool()
     {
         if (m_tool)
@@ -206,6 +207,31 @@ namespace MiniCAD
         m_gripEditor.ReBuildGrip(); // 重建夹点
 
         m_tool = std::make_unique<LineTool>(m_scene, m_cmdStack, m_viewport, m_overlay);
+        m_tool->OnFinished = [this]()
+            {
+                m_overlay.Clear();
+                m_tool.reset();
+            };
+
+        printf("[Editor] Start LineTool\n");
+    }
+
+    // ─────────────────────────────────────────────
+    //  StartPointTool
+    // ─────────────────────────────────────────────
+    void Editor::StartPointTool()
+    {
+        if (m_tool)
+            m_tool->Cancel();
+
+        m_overlay.Clear();
+        m_picking.ClearSelection(); 
+         
+        m_scene.MarkDirty();
+        m_picking.MarkDirty();
+        m_gripEditor.ReBuildGrip(); // 重建夹点
+
+        m_tool = std::make_unique<PointTool>(m_scene, m_cmdStack, m_viewport, m_overlay);
         m_tool->OnFinished = [this]()
             {
                 m_overlay.Clear();

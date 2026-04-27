@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cfloat>
+#include "Core/Entity/PointEntity.hpp"
 
 using namespace DirectX;
 
@@ -29,6 +30,13 @@ namespace MiniCAD
         return std::hypot(p.x - cx, p.y - cy);
     }
 
+    // 点到点的最短距离（屏幕空间） 用于 hover / pick 命中测试
+    static float PointToPoint(const XMFLOAT2& p, const XMFLOAT2& q)
+    {
+        float dx = p.x - q.x;
+        float dy = p.y - q.y;
+        return std::sqrt(dx * dx + dy * dy);
+    }
     // 判断两条线段是否相交（用于框选边界检测）
     static bool SegmentIntersect(const XMFLOAT2& p1, const XMFLOAT2& p2,  const XMFLOAT2& q1, const XMFLOAT2& q2)
     {
@@ -65,6 +73,13 @@ namespace MiniCAD
                SegmentIntersect(a, b, r3, r4) ||
                SegmentIntersect(a, b, r4, r1);
     }
+
+    // 判断线段是否与矩形相交（框选用） 支持“触碰选中”逻辑
+    static bool PointIntersectsRect(const XMFLOAT2& point, float xMin, float yMin, float xMax, float yMax, float padding = 2.0f)   // 像素容差
+    {
+        return point.x >= xMin - padding && point.x <= xMax + padding && point.y >= yMin - padding && point.y <= yMax + padding;
+    }
+
 
     // ───────────────── 构造 ─────────────────
     // 构造：绑定 Scene 和 Viewport（用于拾取计算）
@@ -110,8 +125,10 @@ namespace MiniCAD
 
         m_scene.ForEachObject([&](const Object& obj)
             {
-                if (auto line = dynamic_cast<const LineEntity*>(&obj))
+                if (obj.IsKindOf<LineEntity>())
                 {
+                    auto line = static_cast<const LineEntity*>(&obj);
+
                     auto a = camera.WorldToScreen(line->GetLine().Start);
                     auto b = camera.WorldToScreen(line->GetLine().End);
 
@@ -121,7 +138,21 @@ namespace MiniCAD
                         bestDist = d;
                         best = obj.GetID();
                     }
-                }
+                }; 
+
+                if (obj.IsKindOf<PointEntity>())
+                {
+                    auto point = static_cast<const PointEntity*>(&obj); 
+
+                    auto a = camera.WorldToScreen(point->GetPoint().Position);  
+                    float d = PointToPoint(pt, a );
+                    if (d < thresh && d < bestDist)
+                    {
+                        bestDist = d;
+                        best = obj.GetID();
+                    }
+                }; 
+
             });
 
         return best;
@@ -140,21 +171,32 @@ namespace MiniCAD
         auto camera = m_viewport.GetCamera();
         std::unordered_set<ObjectID> result;
 
-        m_scene.ForEachObject([&](const Object& obj)
+        m_scene.ForEachObject([&](const Object& obj) {
+            if (obj.IsKindOf<LineEntity>())
             {
-                if (auto line = dynamic_cast<const LineEntity*>(&obj))
+                auto line = static_cast<const LineEntity*>(&obj);
+                auto s = camera.WorldToScreen(line->GetLine().Start);
+                auto e = camera.WorldToScreen(line->GetLine().End);
+
+                bool hit = fullyContain
+                    ? (s.x >= xMin && s.x <= xMax && s.y >= yMin && s.y <= yMax &&
+                        e.x >= xMin && e.x <= xMax && e.y >= yMin && e.y <= yMax)
+                    : SegmentIntersectsRect(s, e, xMin, yMin, xMax, yMax);
+
+                if (hit)
+                    result.insert(obj.GetID());
+            }
+
+            if (obj.IsKindOf<PointEntity>())
+            {
+                auto point = static_cast<const PointEntity*>(&obj);
+                auto s = camera.WorldToScreen(point->GetPoint().Position);
+
+                if (PointIntersectsRect(s, xMin, yMin, xMax, yMax))
                 {
-                    auto s = camera.WorldToScreen(line->GetLine().Start);
-                    auto e = camera.WorldToScreen(line->GetLine().End);
-
-                    bool hit = fullyContain
-                        ? (s.x >= xMin && s.x <= xMax && s.y >= yMin && s.y <= yMax &&
-                            e.x >= xMin && e.x <= xMax && e.y >= yMin && e.y <= yMax)
-                        : SegmentIntersectsRect(s, e, xMin, yMin, xMax, yMax);
-
-                    if (hit)
-                        result.insert(obj.GetID());
-                }
+                    result.insert(obj.GetID());
+                } 
+            }
             });
 
         return result;

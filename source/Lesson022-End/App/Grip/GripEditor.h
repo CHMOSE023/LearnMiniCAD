@@ -36,13 +36,27 @@ namespace MiniCAD
         {
             Object::ObjectID Id;
             Grip::Type       Type;
-            LineSegment      Base;  // 各自的快照
+
+            enum class Kind
+            {
+                Line,
+                Point
+            } Kind;
+
+            LineSegment BaseLine;
+            XMFLOAT3    BasePoint;
         };
 
         std::vector<Entry> Entries;
-        bool               Active = false;
-        DirectX::XMFLOAT3  DirtyBase = { .0,.0,.0 };
-        void               Clear() { Entries.clear(); Active = false; DirtyBase = { .0,.0,.0 }; }
+        bool Active = false;
+        XMFLOAT3 DirtyBase = { 0,0,0 };
+
+        void Clear()
+        {
+            Entries.clear();
+            Active = false;
+            DirtyBase = { 0,0,0 };
+        }
     };
 
     class GripEditor

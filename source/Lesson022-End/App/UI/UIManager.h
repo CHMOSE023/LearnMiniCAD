@@ -16,12 +16,13 @@ namespace MiniCAD
         void Render    (Document& doc);
         void EndFrame  ();
 
+        ImGuiWidgetBase* FindWidget(const std::string& id);
     private:
         void DrawDockSpace(Document& doc);
 
     private:
         std::unique_ptr<ImGuiLayer> m_imgui;
 
-        std::vector<std::unique_ptr<ImGuiWidgetBase>> m_widgets;
+        std::vector<std::unique_ptr<ImGuiWidgetBase>> m_widgets; 
     };
 }

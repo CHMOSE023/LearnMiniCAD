@@ -6,8 +6,13 @@ namespace MiniCAD
 {
     const char* StatusBar::GetName() const
     {
-        return "状态";
+        return "状态栏";
     } 
+
+    StatusBar::StatusBar()
+    {
+        m_id = "status_bar";
+    }
 
     void StatusBar::OnRender(Document& document)
     {

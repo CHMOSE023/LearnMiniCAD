@@ -8,13 +8,15 @@ namespace MiniCAD
 {
     PropertyPanel::PropertyPanel()
     {
-        m_subPanels[typeid(LineEntity)] = std::make_unique<PropertySubPanelLine>(); 
+        m_id = "property_panel";
+
+        m_subPanels[typeid(LineEntity)] = std::make_unique<PropertySubPanelLine>();  
     }
 
     const char* PropertyPanel::GetName() const { return "特性"; }
      
     void PropertyPanel::OnRender(Document& document)
-    {
+    { 
         //  设置窗口背景颜色
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_PopupBg));
         if (!ImGui::Begin(GetName()))

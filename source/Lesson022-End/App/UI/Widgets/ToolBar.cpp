@@ -14,22 +14,47 @@ namespace MiniCAD
 {
     const char* ToolBar::GetName() const { return "工具栏"; }
      
+    ToolBar::ToolBar()
+    {
+        m_id = "tool_bar";
+    }
+
     void ToolBar::OnRender(Document& document)
     {
-        ImGui::Begin(GetName());
+        if (!m_visible)
+            return;
+
+        bool open = m_visible;
+
+        if (!ImGui::Begin(GetName(), &open))
+        {
+            ImGui::End();
+            return;
+        } 
+       
+        if (!open)  // 如果用户点了右上角关闭
+            m_visible = false;
+
 
         auto& editor = document.GetEditor();
-        ImGui::BeginGroup();
-        if (ImGui::Button("直线", ImVec2(60, 32))) editor.StartLineTool();
+
+        if (ImGui::Button("直线"))
+            editor.StartLineTool();
+
         ImGui::SameLine();
-        if (ImGui::Button("点", ImVec2(60, 32))) {}
+
+        if (ImGui::Button("点"))
+        {
+            editor.StartPointTool();
+        }
+
         ImGui::SameLine();
-        if (ImGui::Button("一键轴网", ImVec2(60, 32))) m_showAxisWindow = true;
-        ImGui::EndGroup();
+
+        if (ImGui::Button("一键轴网"))
+            m_showAxisWindow = true;
 
         ImGui::End();
 
-        // 轴网窗口独立渲染，不嵌套在工具栏 Begin/End 里
         if (m_showAxisWindow)
             RenderAxisWindow(document);
     }

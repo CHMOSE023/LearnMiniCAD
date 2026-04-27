@@ -11,8 +11,11 @@ namespace MiniCAD
     class ToolBar : public  ImGuiWidgetBase
     {
     public:
+        ToolBar();
+
         virtual void        OnRender(Document& document) override;
-        virtual const char* GetName() const  override;
+        virtual const char* GetName() const  override; 
+         
     private:
         void RenderAxisWindow(Document& document);
 

@@ -8,7 +8,11 @@ namespace MiniCAD
 {
 	struct Line
 	{ 
-		Line() = default; 
+		Line() : Start(0.f, 0.f, 0.f)
+			   , End(0.f, 0.f, 0.f)
+			   , IsSegment(true)
+		{
+		}
 
 		Line(const XMFLOAT3& start, const XMFLOAT3& end, bool isSegment = true)
 			: Start(start)

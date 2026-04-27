@@ -1,3 +1,4 @@
+#pragma once  
 #include "Core/Object/Object.hpp"  
 #include "EntityAttr.hpp"
 #include "Core/GeomKernel/AABB.hpp"

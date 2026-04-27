@@ -10,7 +10,7 @@
 #include "Widgets/StatusBar.h"
 #include "Widgets/ToolBar.h"
 #include "Widgets/ToolBar.h"
-#include "Widgets/LayerManagerWidget.h"
+#include "Widgets/LayerManagerWidget.h" 
 namespace MiniCAD
 {
     bool UIManager::Init(HWND hwnd, ID3D11Device* device, ID3D11DeviceContext* context)
@@ -19,11 +19,17 @@ namespace MiniCAD
         if (!m_imgui->Init(hwnd, device, context))
             return false;
           
+        m_widgets.push_back(std::make_unique<Menubar>(this));        // 菜单栏，管理各面板
         m_widgets.push_back(std::make_unique<PropertyPanel>());      // 添加属性面板
-        m_widgets.push_back(std::make_unique<Menubar>());            // 菜单栏
         m_widgets.push_back(std::make_unique<StatusBar>());          // 状态栏
         m_widgets.push_back(std::make_unique<ToolBar>());            // 工具栏 
         m_widgets.push_back(std::make_unique<LayerManagerWidget>()); // 图层管理
+
+        
+        // 统一初始化状态 
+        FindWidget("layer_manager_widget")->SetVisible(false);
+        FindWidget("property_panel")->SetVisible(false);
+
 
         ImGuiIO& io = ImGui::GetIO();
         io.Fonts->AddFontFromFileTTF(
@@ -66,17 +72,29 @@ namespace MiniCAD
         m_imgui->End();
     }
 
+    ImGuiWidgetBase* UIManager::FindWidget(const std::string& id)
+    {
+        for (auto& w : m_widgets)
+        {  
+            if (id == w->GetID())
+                return w.get(); 
+        }
+        return nullptr;
+    }
+
     // =========================================================
    // 主渲染入口
    // =========================================================
     void UIManager::Render(Document& document)
     {
-         DrawDockSpace(document);
-
+        DrawDockSpace(document); 
         for (const auto& widget : m_widgets)
         {
             if (!widget) continue;
-            widget->OnRender(document);
+            if (widget->IsVisible())
+            { 
+                widget->OnRender(document);
+            }
         }
 
       
@@ -92,23 +110,25 @@ namespace MiniCAD
         ImGui::SetNextWindowSize(vp->WorkSize);
         ImGui::SetNextWindowViewport(vp->ID);
 
-        ImGuiWindowFlags flags =
-            ImGuiWindowFlags_NoTitleBar |
-            ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoBringToFrontOnFocus |
-            ImGuiWindowFlags_NoNavFocus |
-            ImGuiWindowFlags_NoBackground;
-
-        // DockRoot 自己用 (0,0) padding，不影响其他子窗口
+        ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar            |
+                                 ImGuiWindowFlags_NoCollapse            |
+                                 ImGuiWindowFlags_NoResize              |
+                                 ImGuiWindowFlags_NoMove                |
+                                 ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                 ImGuiWindowFlags_NoNavFocus            |
+                                 ImGuiWindowFlags_NoBackground          ;
+         
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::Begin("DockRoot", nullptr, flags);
         ImGui::PopStyleVar();
 
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, 100));
+
+      
+
         ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
-        ImGui::DockSpace(dockspace_id, ImVec2(0, 0),
-            ImGuiDockNodeFlags_PassthruCentralNode);
+        ImGui::DockSpace(dockspace_id, ImVec2(0, 0),   ImGuiDockNodeFlags_PassthruCentralNode);
 
         ImGui::End();
     }

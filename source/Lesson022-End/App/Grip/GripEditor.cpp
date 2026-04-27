@@ -1,7 +1,10 @@
 #include "GripEditor.h"
 #include "Core/Entity/LineEntity.hpp"
-#include "App/Command/DragLineCommand.h"
+#include "Core/Entity/PointEntity.hpp" 
+#include "App/Command/DragEntitiesCommand.h"
 #include <memory>
+#include <Core/GeomKernel/Line.hpp>
+ 
 using namespace DirectX;
 
 namespace MiniCAD
@@ -53,22 +56,46 @@ namespace MiniCAD
         if (hits.empty()) return false;
 
         m_drag.Clear();
-        m_drag.Active    = true;
+        m_drag.Active = true;
 
-        auto hit = HitTest(sp);
-        m_drag.DirtyBase = m_grips[hit].WorldPos; 
+        int hit = HitTest(sp);
+        if (hit < 0) return false;
+
+        m_drag.DirtyBase = m_grips[hit].WorldPos;
 
         for (int idx : hits)
         {
             const Grip& grip = m_grips[idx];
             auto obj = m_scene.GetEntity(grip.OwnerID);
-            if (!obj || !obj->IsKindOf<LineEntity>()) continue;
+            if (!obj) continue;
 
-            auto& L = static_cast<LineEntity*>(obj)->GetLine();
-            m_drag.Entries.push_back({ grip.OwnerID, grip.GripType, { L.Start, L.End } });
+            DragState::Entry entry;
+            entry.Id = grip.OwnerID;
+            entry.Type = grip.GripType;
+
+            // 关键：按类型存快照，而不是强行 Line
+            if (obj->IsKindOf<LineEntity>())
+            {
+                entry.Kind = DragState::Entry::Kind::Line;   
+                auto& L = static_cast<LineEntity*>(obj)->GetLine();
+                entry.BaseLine = { L.Start,L.End };
+            }
+            else if (obj->IsKindOf<PointEntity>())
+            {
+                entry.Kind = DragState::Entry::Kind::Point;
+                auto& p = static_cast<PointEntity*>(obj)->GetPoint();
+                entry.BasePoint = p.Position;
+            }
+            else
+            {
+                continue;
+            }
+
+            m_drag.Entries.push_back(entry);
         }
 
-        if (m_drag.Entries.empty()) return false;
+        if (m_drag.Entries.empty())
+            return false;
 
         m_dragging = true;
         m_activeIdx = hits[0];
@@ -82,6 +109,7 @@ namespace MiniCAD
     {
         XMFLOAT2 sp((float)e.MouseX, (float)e.MouseY);
         m_hoveredIdxs = HitTestAll(sp);
+
         if (!m_dragging) return false;
 
         XMFLOAT3 worldPos = e.HasSnap
@@ -91,23 +119,55 @@ namespace MiniCAD
         for (auto& entry : m_drag.Entries)
         {
             auto obj = m_scene.GetEntity(entry.Id);
-            if (!obj || !obj->IsKindOf<LineEntity>()) continue;
+            if (!obj) continue;
 
-            // 各自基于自己的 Base + 自己的 Type 计算，互不影响
-            auto newSeg = MoveGrip(entry.Base, entry.Type, worldPos);
-            static_cast<LineEntity*>(obj)->SetLine({ newSeg.Start, newSeg.End });
-
-            for (auto& grip : m_grips)
+            // ─────────────────────────────
+            // LINE
+            // ─────────────────────────────
+            if (entry.Kind == DragState::Entry::Kind::Line)
             {
-                if (grip.OwnerID != entry.Id) continue;
-                switch (grip.GripType)
+                if (!obj->IsKindOf<LineEntity>()) continue;
+
+                auto newSeg = MoveGrip(entry.BaseLine, entry.Type, worldPos); 
+
+                Line line(newSeg.Start, newSeg.End);
+
+                static_cast<LineEntity*>(obj)->SetLine(line);
+
+                for (auto& grip : m_grips)
                 {
-                case Grip::Type::Start: grip.WorldPos = newSeg.Start; break;
-                case Grip::Type::End:   grip.WorldPos = newSeg.End;   break;
-                case Grip::Type::Mid:
-                    grip.WorldPos = { (newSeg.Start.x + newSeg.End.x) * 0.5f,
-                                      (newSeg.Start.y + newSeg.End.y) * 0.5f, 0.f };
-                    break;
+                    if (grip.OwnerID != entry.Id) continue;
+
+                    switch (grip.GripType)
+                    {
+                    case Grip::Type::Start: grip.WorldPos = newSeg.Start; break;
+                    case Grip::Type::End:   grip.WorldPos = newSeg.End; break;
+                    case Grip::Type::Mid:
+                        grip.WorldPos = {
+                            (newSeg.Start.x + newSeg.End.x) * 0.5f,
+                            (newSeg.Start.y + newSeg.End.y) * 0.5f,
+                            0.f
+                        };
+                        break;
+                    }
+                }
+            }
+
+            // ─────────────────────────────
+            // POINT
+            // ─────────────────────────────
+            else if (entry.Kind == DragState::Entry::Kind::Point)
+            {
+                if (!obj->IsKindOf<PointEntity>()) continue;
+
+                static_cast<PointEntity*>(obj)->SetPoint({ worldPos });
+
+                for (auto& grip : m_grips)
+                {
+                    if (grip.OwnerID == entry.Id)
+                    {
+                        grip.WorldPos = worldPos;
+                    }
                 }
             }
         }
@@ -137,34 +197,46 @@ namespace MiniCAD
     //  MouseUp  — 提交命令到 CommandStack
     // ─────────────────────────────────────────────
     bool GripEditor::OnMouseUp(const InputEvent& e)
-    {
+    { 
         if (!m_dragging) return false;
 
-        if (m_drag.Entries.size() == 1)
+        std::vector<DragEntityEntry> entries;
+
+        for (auto& entry : m_drag.Entries)
         {
-            // 单夹点，用原来的命令
-            auto& entry = m_drag.Entries[0];
             auto obj = m_scene.GetEntity(entry.Id);
-            if (obj && obj->IsKindOf<LineEntity>())
+            if (!obj) continue;
+
+            DragEntityEntry out;
+            out.Id = entry.Id;
+
+            if (obj->IsKindOf<LineEntity>())
+            {
+                out.Kind = DragEntityEntry::Kind::Line;
+            }
+            else if (obj->IsKindOf<PointEntity>())
+            {
+                out.Kind = DragEntityEntry::Kind::Point;
+            }
+
+            if (obj->IsKindOf<LineEntity>())
             {
                 auto& L = static_cast<LineEntity*>(obj)->GetLine();
-                m_cmdStack.Push(std::make_unique<DragLineCommand>(entry.Id, entry.Base, LineSegment{ L.Start, L.End }));
+                out.BeforeLine = entry.BaseLine;
+                out.AfterLine = { L.Start, L.End };
             }
-        }
-        else
-        {
-            // 多夹点重叠，用组合命令，一次 Undo 全部回退
-            std::vector<DragMultiLineCommand::Entry> entries;
-            for (auto& entry : m_drag.Entries)
+            else if (obj->IsKindOf<PointEntity>())
             {
-                auto obj = m_scene.GetEntity(entry.Id);
-                if (!obj || !obj->IsKindOf<LineEntity>()) continue;
-                auto& L = static_cast<LineEntity*>(obj)->GetLine();
-                entries.push_back({ entry.Id, entry.Base, { L.Start, L.End } });
+                auto& p = static_cast<PointEntity*>(obj)->GetPoint();
+                out.BeforePoint = entry.BasePoint;
+                out.AfterPoint = p.Position;
             }
-            if (!entries.empty())
-                m_cmdStack.Push(std::make_unique<DragMultiLineCommand>(std::move(entries)));
+
+            entries.push_back(out);
         }
+
+        if (!entries.empty())
+            m_cmdStack.Push(std::make_unique<DragEntitiesCommand>(std::move(entries)));
 
         m_dragging = false;
         m_activeIdx = -1;
@@ -226,16 +298,26 @@ namespace MiniCAD
         {
             auto obj = m_scene.GetEntity(objId);
             if (obj != nullptr)
-            {
-                if (!obj->IsKindOf<LineEntity>())
-                    continue;
+            { 
+                if (obj->IsKindOf<LineEntity>())
+                {
+                    auto* line = static_cast<const LineEntity*>(obj);
+                    auto& L = line->GetLine();
 
-                auto* line = static_cast<const LineEntity*>(obj);
-                auto& L = line->GetLine();
+                    m_grips.push_back({ objId, Grip::Type::Start, L.Start });
+                    m_grips.push_back({ objId, Grip::Type::Mid,   L.Midpoint() });
+                    m_grips.push_back({ objId, Grip::Type::End,   L.End });
+                }
 
-                m_grips.push_back({ objId, Grip::Type::Start, L.Start });
-                m_grips.push_back({ objId, Grip::Type::Mid,   L.Midpoint() });
-                m_grips.push_back({ objId, Grip::Type::End,   L.End });
+                if (obj->IsKindOf<PointEntity>())
+                {
+                    auto* pointEntity = static_cast<const PointEntity*>(obj);
+                    auto& p = pointEntity->GetPoint();
+
+                    m_grips.push_back({ objId, Grip::Type::Start, p.Position });
+                  
+                }
+              
             }
         }
 
@@ -292,12 +374,25 @@ namespace MiniCAD
     {
         if (!m_dragging) return;
 
-        // 把所有对象还原到 Base 快照
         for (auto& entry : m_drag.Entries)
         {
             auto obj = m_scene.GetEntity(entry.Id);
-            if (!obj || !obj->IsKindOf<LineEntity>()) continue;
-            static_cast<LineEntity*>(obj)->SetLine({ entry.Base.Start, entry.Base.End });
+            if (!obj) continue;
+             
+            if (entry.Kind == DragState::Entry::Kind::Line)        // LINE
+            {
+                if (!obj->IsKindOf<LineEntity>()) continue;
+
+                Line line(entry.BaseLine.Start, entry.BaseLine.End);
+
+                static_cast<LineEntity*>(obj) ->SetLine(line);
+            } 
+            else if (entry.Kind == DragState::Entry::Kind::Point) // Point
+            {
+                if (!obj->IsKindOf<PointEntity>()) continue;
+
+                static_cast<PointEntity*>(obj) ->SetPoint(entry.BasePoint);
+            }
         }
 
         m_dragging = false;

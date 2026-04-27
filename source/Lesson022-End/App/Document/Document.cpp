@@ -1,6 +1,7 @@
 #include "Document.h"    
 #include "Render/D3D11/Renderer.h"
 #include "Core/Entity/LineEntity.hpp"
+#include "Core/Entity/PointEntity.hpp"
 #include "Core/Object/Object.hpp"
 #include <vector> 
 #include <memory>
@@ -10,8 +11,8 @@ namespace MiniCAD
     Document::Document(Renderer& render, float width, float height)
         : m_scene()
         , m_cmdStack()
-        , m_overlay()
         , m_viewport(render, width, height)
+        , m_overlay(m_viewport)
         , m_picking(m_scene, m_viewport)
         , m_snap()
         , m_currentSnap() 
@@ -52,7 +53,7 @@ namespace MiniCAD
             {
                 for (const auto& entry : m_editor.GetGipEditor().GetDragEntries())
                 {
-                    m_overlay.AddLine(entry.Base.Start, entry.Base.End, { 0.6, 0.6, 0.6,0.6 });
+                    m_overlay.AddLine(entry.BaseLine.Start, entry.BaseLine.End, { 0.6, 0.6, 0.6,0.6 });
                 }
             }
         }
@@ -81,33 +82,70 @@ namespace MiniCAD
 
         m_scene.ForEachObject([&](const Object& obj)
             {
-                if (!obj.IsKindOf<LineEntity>())
-                    return;
-
-                const auto& line = static_cast<const LineEntity&>(obj);
-                const auto& attr = line.GetAttr();
-                const auto& geom = line.GetLine();
-
-                const auto id = obj.GetID();
-
-                const bool isSelected = selectionIds.contains(id);
-                const bool isHovered = hoverIds.contains(id);
-
-                // ===== Base：只画普通 =====
-                if (!isSelected && !isHovered)
+                if (obj.IsKindOf<LineEntity>())  // 线
                 {
-                    m_sceneVertices.push_back({ geom.Start, attr.Color });
-                    m_sceneVertices.push_back({ geom.End,   attr.Color });
+                    const auto& line = static_cast<const LineEntity&>(obj);
+                    const auto& attr = line.GetAttr();
+                    const auto& geom = line.GetLine();
+
+                    const auto id = obj.GetID();
+
+                    const bool isSelected = selectionIds.contains(id);
+                    const bool isHovered = hoverIds.contains(id);
+
+                    // ===== Base：只画普通 =====
+                    if (!isSelected && !isHovered)
+                    {
+                        m_sceneVertices.push_back({ geom.Start, attr.Color });
+                        m_sceneVertices.push_back({ geom.End,   attr.Color });
+                    }
+
+                    // ===== Overlay：画高亮 =====
+                    if (isSelected)
+                    {
+                        m_overlay.AddLine(geom.Start, geom.End, selectionColor);
+                    }
+                    else if (isHovered)
+                    {
+                        m_overlay.AddLine(geom.Start, geom.End, hoverColor);
+                    }
                 }
 
-                // ===== Overlay：画高亮 =====
-                if (isSelected)
-                { 
-                    m_overlay.AddLine(geom.Start, geom.End, selectionColor);
-                }
-                else if (isHovered)
-                { 
-                    m_overlay.AddLine(geom.Start, geom.End, hoverColor);
+                if (obj.IsKindOf<PointEntity>())  // 使用线模拟点
+                {
+                    const auto& point = static_cast<const PointEntity&>(obj);
+                    const auto& attr  = point.GetAttr();
+                    const auto& geom  = point.GetPoint();
+
+                    const auto id         = obj.GetID(); 
+                    const bool isSelected = selectionIds.contains(id);
+                    const bool isHovered  = hoverIds.contains(id);
+
+                    // 绘制为十字
+                    const float s = 0.2f;
+                    auto        p = geom.Position;
+
+                    // ===== Base：只画普通 =====
+                    if (!isSelected && !isHovered)
+                    {  
+                        m_sceneVertices.push_back({ {p.x - s ,p.y,p.z}, attr.Color });
+                        m_sceneVertices.push_back({ {p.x + s ,p.y,p.z}, attr.Color });
+
+                        m_sceneVertices.push_back({ {p.x  ,p.y - s,p.z}, attr.Color });
+                        m_sceneVertices.push_back({ {p.x  ,p.y + s,p.z}, attr.Color });
+                    }
+
+                    // ===== Overlay：画高亮 =====
+                    if (isSelected)
+                    { 
+                        m_overlay.AddLine({ p.x - s ,p.y,p.z }, { p.x + s ,p.y,p.z }, selectionColor);
+                        m_overlay.AddLine({ p.x  ,p.y - s,p.z }, { p.x  ,p.y + s,p.z }, selectionColor);
+                    }
+                    else if (isHovered)
+                    {
+                        m_overlay.AddLine({ p.x - s ,p.y,p.z }, { p.x + s ,p.y,p.z }, hoverColor);
+                        m_overlay.AddLine({ p.x  ,p.y - s,p.z }, { p.x  ,p.y + s,p.z }, hoverColor); 
+                    }
                 }
             });
 

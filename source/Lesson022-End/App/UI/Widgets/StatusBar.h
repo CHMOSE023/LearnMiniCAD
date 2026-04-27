@@ -7,6 +7,8 @@ namespace MiniCAD
     class StatusBar : public  ImGuiWidgetBase
     {
     public: 
+        StatusBar(); 
+
         virtual void        OnRender( Document& document) override;
         virtual const char* GetName() const  override; 
     
