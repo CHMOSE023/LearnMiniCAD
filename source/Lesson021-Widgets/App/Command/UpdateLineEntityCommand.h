@@ -1,7 +1,9 @@
 #pragma once
-#include "App/CommandStack/ICommand.h"
-#include "Core/Entity/LineEntity.hpp"
 #include "App/Scene/Scene.h"
+#include "App/CommandStack/ICommand.h"
+#include "Core/Entity/EntityAttr.hpp"
+#include "Core/GeomKernel/Line.hpp"
+#include "Core/Entity/LineEntity.hpp"
 
 namespace MiniCAD
 {

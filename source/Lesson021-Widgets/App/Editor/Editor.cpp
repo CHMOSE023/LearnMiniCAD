@@ -1,153 +1,286 @@
 #include "Editor.h"
-#include "App/Scene/Scene.h"
-#include "App/CommandStack/CommandStack.h"  
-#include "App/Input/InputEvent.h" 
-#include "App/Editor/Tools/LineTool.h"
-#include "App/Command/DeleteEntityCommand.h"
+#include "App/Tools/LineTool.h"
+#include "App/Tools/PointTool.h"
+#include "App/CommandStack/CommandStack.h"
 #include "App/Command/BatchDeleteCommand.h"
+#include "App/Scene/Scene.h"
+#include "App/Overlay/Overlay.h"
+#include "App/Picking/Picking.h"
+#include "Render/Viewport/Viewport.h"
+#include "Render/Viewport/Camera.h"
 #include <memory>
+#include <cstdio>
+
 namespace MiniCAD
 {
-    Editor::Editor(Scene* scene, CommandStack* cmdStack)
+    Editor::Editor(Scene& scene, CommandStack& cmdStack, Viewport& viewport,
+        Overlay& overlay, Picking& picking,
+        SnapEngine& snap, SnapResult& currentSnap)
         : m_scene(scene)
         , m_cmdStack(cmdStack)
-		, m_picking(scene)
-        , m_gripEditor(scene, &m_gripManager, m_cmdStack)
+        , m_viewport(viewport)
+        , m_overlay(overlay)
+        , m_picking(picking)
+        , m_snap(snap)
+        , m_currentSnap(currentSnap)
+        , m_gripEditor(m_viewport, m_scene, m_cmdStack, m_picking) 
+        , m_anchorLine({}, {})
     {
     }
-    /*
-        Raw Input
-           ↓
-        Global Shortcut Layer
-           ↓
-        Snap System
-           ↓
-        Ortho System
-           ↓
-        Tool Layer
-           ↓
-        Editor Default Layer
-    */
 
-    /// <summary>
-    /// 责任链模式，消息处理有优先级
-    /// </summary> 
     bool Editor::OnInput(const InputEvent& inputEvent)
-    { 
+    {
+        UpdateSnap(inputEvent);
+        InputEvent e = InjectSnap(inputEvent);
 
-        // =========================================================
-        // 0. 全局快捷键（最高优先级，raw input）
-        // =========================================================
-        if (inputEvent.Type == InputEventType::KeyDown)
-        {
-            if (inputEvent.KeyCode == VK_ESCAPE)
-            {
-                if (m_tool)
-                {
-                    m_tool->Cancel();
-                    m_tool.reset();
-                    return true;
-                }
-                return false;
-            }
+        // 1. 全局快捷键（Undo / Redo / Cancel / 工具切换 / 视图操作）
+        if (HandleGlobal(e))
+            return true;
 
-            if (inputEvent.KeyCode == VK_F3) { ToggleSnap(); return true; }
+        // 获取约束修改后的 事件。
+        e = ApplyConstraints(e);
 
-            if (inputEvent.KeyCode == VK_F8) { ToggleOrtho(); return true; }
-
-            if (inputEvent.HasModifier(ModifierKey::Ctrl) && inputEvent.KeyCode == 'Z') { Undo(); return true; }
-
-            if (inputEvent.HasModifier(ModifierKey::Ctrl) && inputEvent.KeyCode == 'Y') { Redo(); return true; }
-        }
-
-        // =========================================================
-        // 1. Snap 最近点更新（只影响鼠标相关事件）
-        // =========================================================
-
-        UpdateSnap(inputEvent);                // 更新捕获
-
-        // =========================================================
-        // 2. 输入处理（Snap + Ortho）
-        // ========================================================= 
-        InputEvent e = InjectSnap(inputEvent); // 2.1 注入捕获的最近点 
-        e = ApplyConstraints(e);               // 2.2 限制方向光标方向
-         
-
-        // =========================================================
-        // 3. Tool 处理（处理“编辑行为”）
-        // =========================================================
+        // 2. Tool 激活时完全屏蔽后续系统
         if (m_tool)
-        {
-            switch (e.Type)
-            {
-            case InputEventType::MouseButtonDown: m_tool->OnMouseDown(e); return true;
-            case InputEventType::MouseButtonUp:   m_tool->OnMouseUp(e);   return true;
-            case InputEventType::MouseMove:       m_tool->OnMouseMove(e); OnMouseMove(e); return true;  // 调用默认移动事件
-            case InputEventType::KeyDown:         m_tool->OnKeyDown(e);   return true;
-            case InputEventType::MouseWheel:     
-            {
-                if (m_tool->OnMouseWheel(e))  // 如果工具没有处理滚轮事件
-                    return true;
-                
-                OnMouseWheel(e);
-                return true;                  // 使用默认方式处理
+            return m_tool->OnInput(e);
+
+        // 3. 夹点拖拽编辑 
+        if (m_gripEditor.OnInput(e))
+            return true;
+         
+        // 4. Picking（选择系统） 
+        if (!m_gripEditor.IsDragging()) //拖拽进行中完全跳过：避免 hover / selection 被误改，
+        {  
+            if (m_picking.OnInput(e))
+            {  
+                m_gripEditor.MarkDirty();   
+                return true;
             }
-            default: return false;
-            } 
+
         }
 
-        // =========================================================
-        // 4. Editor 默认处理
-        // =========================================================
+        // 5. 默认处理
+        return HandleDefault(e);
+    }
+
+    // ─────────────────────────────────────────────
+    //  HandleGlobal
+    // ─────────────────────────────────────────────
+    bool Editor::HandleGlobal(const InputEvent& e)
+    {
+        if (e.IsUndo())
+        {
+            m_cmdStack.Undo(m_scene);
+            m_gripEditor.MarkDirty();  // 线段数据已变，夹点需要重建
+            m_scene.MarkDirty();
+            return true;
+        }
+
+        if (e.IsRedo())
+        {
+            m_cmdStack.Redo(m_scene);
+            m_gripEditor.MarkDirty();  // 同上
+            m_scene.MarkDirty();
+            return true;
+        }
+
+        if (e.IsCancel())
+        {
+            if (m_tool)
+            {
+                m_tool->Cancel();
+                m_tool.reset();
+                m_overlay.Clear();
+            }
+            else if (m_gripEditor.IsDragging())  // 取消拖动恢复样式
+            {
+                m_gripEditor.CancelDrag();
+                m_gripEditor.MarkDirty();   
+            }
+            return true;
+        }
+
+        // Delete：删除选中
+        if (e.KeyCode == VK_DELETE)
+        {
+            DeleteSelected();
+
+            m_gripEditor.ReBuildGrip(); // 重建夹点
+            return true;
+        }
+
+        if (e.IsStartLineTool())
+        {
+            StartLineTool();
+            return true;
+        }
+        
+        if (e.Type == InputEventType::KeyDown && e.KeyCode == VK_F3)  // F3 启用或关闭正交
+        {
+            ToggleSnap();
+        }
+
+        if (e.Type == InputEventType::KeyDown && e.KeyCode == VK_F8)  // F8 启用或关闭正交
+        {
+            m_orthoEnabled = !m_orthoEnabled;
+
+            printf("[Editor] Ortho: %s\n", m_orthoEnabled ? "ON" : "OFF");
+
+            return true;
+        }
+
         switch (e.Type)
         {
-        case InputEventType::MouseButtonDown: OnMouseButtonDown(e); return true;
-        case InputEventType::MouseButtonUp:   OnMouseButtonUp(e);   return true;
-        case InputEventType::MouseWheel:      OnMouseWheel(e);      return true;
-        case InputEventType::MouseMove:       OnMouseMove(e);       return true;
-        case InputEventType::KeyDown:         OnKeyDown(e);         return true;
+        case InputEventType::MouseMove:
+            if (e.IsMouseButtonDown(MouseButton::Middle))
+            {
+                m_viewport.Pan(e.MouseX - e.LastMouseX, e.MouseY - e.LastMouseY);
+                return true;
+            }
+            break;
+
+        case InputEventType::MouseWheel:
+            m_viewport.Zoom(e.WheelDelta, e.MouseX, e.MouseY);
+            return true;
+
         default:
-            return false;
-        } 
+            break;
+        }
+
         return false;
     }
 
-    void Editor::OnResize(float width, float height)
+    bool Editor::HandleDefault(const InputEvent& /*e*/)
     {
-        m_scene->GetCamera()->Resize(width, height);
+        return false;
     }
 
+    const std::unordered_set<Object::ObjectID>& Editor::GetSelection()
+    {
+        return m_picking.GetSelection();
+    }
+
+    const std::unordered_set<Object::ObjectID>& Editor::GetHovered()
+    {
+        return m_picking.GetHovered();
+    }
+
+    Object* Editor::GetPrimarySelectedObject()
+    {
+        const auto& sel = m_picking.GetSelection();
+        if (sel.empty()) return nullptr;
+
+        auto id = *sel.begin(); // 先简单取第一个
+
+        return m_scene.GetEntity(id);
+    }
+
+    std::vector<Object*> Editor::GetSelectedObjects()
+    {
+        std::vector<Object*> result;
+
+        for (auto id : m_picking.GetSelection())
+        {
+            if (auto* obj = m_scene.GetEntity(id))
+            {
+                result.push_back(obj);
+            }
+        }
+
+        return result;
+    }
+
+    // ─────────────────────────────────────────────
+    //  StartLineTool
+    // ─────────────────────────────────────────────    
+    void Editor::StartLineTool()
+    {
+        if (m_tool)
+            m_tool->Cancel();
+
+        m_overlay.Clear();       
+        m_picking.ClearSelection(); // 
+       
+
+        m_scene.MarkDirty();
+        m_picking.MarkDirty();   
+        m_gripEditor.ReBuildGrip(); // 重建夹点
+
+        m_tool = std::make_unique<LineTool>(m_scene, m_cmdStack, m_viewport, m_overlay);
+        m_tool->OnFinished = [this]()
+            {
+                m_overlay.Clear();
+                m_tool.reset();
+            };
+
+        printf("[Editor] Start LineTool\n");
+    }
+
+    // ─────────────────────────────────────────────
+    //  StartPointTool
+    // ─────────────────────────────────────────────
+    void Editor::StartPointTool()
+    {
+        if (m_tool)
+            m_tool->Cancel();
+
+        m_overlay.Clear();
+        m_picking.ClearSelection(); 
+         
+        m_scene.MarkDirty();
+        m_picking.MarkDirty();
+        m_gripEditor.ReBuildGrip(); // 重建夹点
+
+        m_tool = std::make_unique<PointTool>(m_scene, m_cmdStack, m_viewport, m_overlay);
+        m_tool->OnFinished = [this]()
+            {
+                m_overlay.Clear();
+                m_tool.reset();
+            };
+
+        printf("[Editor] Start LineTool\n");
+    }
+
+    // ─────────────────────────────────────────────
+    //  Snap
+    // ───────────────────────────────────────────── 
+    void Editor::DeleteSelected()
+    {
+        auto ids = m_picking.GetSelection(); // 获取选中对象 ID 列表
+        if (ids.empty())
+            return;
+
+        std::vector<Object::ObjectID> idsVec(ids.begin(), ids.end()); // 转换为 vector
+
+        auto cmd = std::make_unique<BatchDeleteCommand>(idsVec);
+
+        m_cmdStack.Execute(std::move(cmd), m_scene);
+
+    }
+
+    // ─────────────────────────────────────────────
+    //  Snap
+    // ─────────────────────────────────────────────
     void Editor::UpdateSnap(const InputEvent& e)
     {
         if (!ShouldSnap())
             return;
 
-        const Camera* cam = m_scene->GetCamera();
+        const Camera& cam = m_viewport.GetCamera();
 
-        // 只在鼠标相关事件时更新（避免无意义计算）
+        // 夹点拖拽时排除选中对象，避免捕捉到自身端点
+        const auto& exclude = m_gripEditor.IsDragging() ? m_picking.GetSelection() : std::unordered_set<Object::ObjectID>{};
+
         switch (e.Type)
         {
         case InputEventType::MouseMove:
         case InputEventType::MouseButtonDown:
         case InputEventType::MouseButtonUp:
-        {
-            SnapContext ctx;
-            ctx.screenPt = { (float)e.MouseX, (float)e.MouseY };
-            ctx.scene = m_scene;
-            ctx.cam = m_scene->GetCamera();
-
-            // 拖拽时排除当前选中对象
-            if (m_gripEditor.IsDragging())
-            {
-                ctx.exclude = m_picking.GetSelection();
-            }
-
-            m_currentSnap = m_snap.Query(ctx);
-        }
-        break;
+            m_currentSnap = m_snap.Query( { static_cast<float>(e.MouseX), static_cast<float>(e.MouseY) },m_scene, cam, exclude);
+            break;
         default:
             break;
-        } 
+        }
     }
 
     bool Editor::ShouldSnap() const
@@ -155,26 +288,20 @@ namespace MiniCAD
         if (!m_snapEnabled)
             return false;
 
-        if (m_tool) return true;
-        if (m_gripEditor.IsDragging()) return true;  
-        // 可以加更多交互状态
-
+        if (m_tool) return true;                        // 绘制工具激活时捕捉
+        if (m_gripEditor.IsDragging()) return true;     // 夹点拖拽时也捕捉
         return false;
     }
 
     InputEvent Editor::InjectSnap(const InputEvent& e)
     {
         InputEvent out = e;
+        out.HasSnap    = false; 
 
         if (m_currentSnap.IsValid())
-        {
-            out.HasSnap   = true;
+        { 
+            out.HasSnap = true;
             out.SnapWorld = m_currentSnap.WorldPos;
-          
-        }
-        else
-        {  
-            out.HasSnap = false; 
         }
 
         return out;
@@ -185,20 +312,28 @@ namespace MiniCAD
         InputEvent out = e;
 
         if (!m_orthoEnabled)
+        {
+            m_anchorLine = { {},{} };  // 清空约束辅助线
             return out;
+        }
 
         DirectX::XMFLOAT3 anchor;
 
-        if (!TryGetAnchor(anchor))
+        if (!TryGetAnchor(anchor))     // 获取约束点
+        {
+            m_anchorLine = { {},{} };  // 清空约束辅助线
             return out;
+        }
 
         DirectX::XMFLOAT3 input;
 
         if (e.HasSnap)
+        {
             input = e.SnapWorld;
+        }
         else
         {
-            auto p = m_scene->GetCamera()->ScreenToWorld(e.MouseX, e.MouseY);
+            auto p = m_viewport.GetCamera().ScreenToWorld(e.MouseX, e.MouseY);
             input = DirectX::XMFLOAT3(p.x, p.y, 0.f);
         }
 
@@ -215,233 +350,15 @@ namespace MiniCAD
         out.HasSnap = true;
         out.SnapWorld = result;
 
+		m_anchorLine = { anchor, result }; // 更新约束辅助线
+      
         return out;
-       
+
     }
 
-	// 帧度更新时，Viewport 会调用 Editor::BuildViewState 
-    // 来获取当前的 ViewState（Selection/Hovered/ShowGrid/ShowGizmo）
-    ViewState Editor::BuildViewState() const
-    {
-        ViewState vs;
-
-        vs.ShowGrid     = m_showGrid;
-        vs.ShowGizmo    = m_showGizmo;
-		vs.MouseX       = static_cast<float>(m_mouseX);
-		vs.MouseY       = static_cast<float>(m_mouseY);
-                        
-        vs.Selection    = &m_picking.GetSelection();
-        vs.Hovered      = &m_picking.GetHovered();
-
-        vs.BoxSelected  = m_picking.IsBoxSelected();
-        vs.BoxPressX    = m_picking.GetBoxPress().x;
-        vs.BoxPressY    = m_picking.GetBoxPress().y; 
-
-        vs.CrossBox     = (m_tool == NULL); // 进入工具状态不显示 光标中间方框
-
-        auto* cam = m_scene->GetCamera();
-
-        if (m_showGizmo)
-        { 
-            auto hoveredIdx = m_gripEditor.HoveredGrip();
-         
-            for (int i = 0; i < (int)m_gripManager.GetGrips().size(); ++i)
-            {
-                const auto& g = m_gripManager.GetGrips()[i];
-
-                auto s = cam->WorldToScreen(g.WorldPos);
-
-                auto type = static_cast<GripDraw::Type>(g.GripType);
-
-                bool hovered = (i == hoveredIdx);
-               
-                vs.Grips.push_back({ s, type,hovered });
-            }
-        }
-
-        vs.Snap.SnapType  = static_cast<SnapDraw::Type>(m_currentSnap.SnapType); 
-        vs.Snap.Pos       = cam->WorldToScreen(m_currentSnap.WorldPos);
-        return vs;
-    }
-
-    const std::unordered_set<Object::ObjectID>& Editor::GetSelection()
-    {
-		return m_picking.GetSelection();
-    }
-    
-    const std::unordered_set<Object::ObjectID>& Editor::GetHovered()
-    {
-        return m_picking.GetHovered();
-    }
-
-    Object* Editor::GetPrimarySelectedObject()
-    {
-        const auto& sel = m_picking.GetSelection();
-        if (sel.empty()) return nullptr;
-
-        auto id = *sel.begin(); // 先简单取第一个
-
-        return m_scene->GetEntity(id); 
-    }
-
-    std::vector<Object*> Editor::GetSelectedObjects()
-    {
-        std::vector<Object*> result;
-
-        for (auto id : m_picking.GetSelection())
-        {
-            if (auto* obj = m_scene->GetEntity(id))
-            {
-                result.push_back(obj);
-            }
-        }
-
-        return result;
-    }
-
-    void Editor::OnKeyDown(const InputEvent& e)
-    {  
-        m_picking.OnKeyDown(e);
-
-        if (e.KeyCode == VK_ESCAPE)
-        {
-            OnSelectionChanged();   // ESC 清空选集，同步夹点
-        }
-
-        if (e.KeyCode == VK_F8)
-        {
-            ToggleOrtho();
-            return;
-        }
-
-        if (e.KeyCode == 'L')
-        { 
-            StartLineTool();
-            return;
-        }
-
-		// Delete：删除选中
-        if (e.KeyCode == VK_DELETE)
-        { 
-            DeleteSelected();
-            return;
-        }
-
-        // Ctrl+Z：Undo
-        if (e.HasModifier(ModifierKey::Ctrl) && e.KeyCode == 'Z')
-        {
-            Undo();  return;
-        } 
-
-        // Ctrl+Y：Redo
-        if (e.HasModifier(ModifierKey::Ctrl) && e.KeyCode == 'Y')
-        {
-            Redo();   return;
-        } 
-		
-        // 释放命令
-        if (m_tool&& e.KeyCode == VK_ESCAPE)
-        {
-            m_tool->Cancel();
-            m_tool.reset();
-            printf("[Editor] ESC exit tool\n");
-            return ;
-        }
-         
-      
-    }
-
-    void Editor::OnKeyUp(const InputEvent& e)
-    {
-    }
-
-    void Editor::OnMouseButtonUp(const InputEvent& e)
-    {
-        if (m_gripEditor.OnMouseUp(e))
-        {
-            m_gripManager.Rebuild(m_picking.GetSelection(), m_scene); // 夹点拖拽结束 → 几何已变，重建夹点
-            return;
-        }
-
-        auto selBefore = m_picking.GetSelection();
-
-        m_picking.OnMouseUp(e);
-
-        if (m_picking.ConsumeSelectionChanged()) // 选集是否变化
-            OnSelectionChanged();
-        
-    }
-
-    void Editor::OnMouseButtonDown(const InputEvent& e)
-    {
-        
-        if (m_gripEditor.OnMouseDown(e)) return;
-
-        m_picking.OnMouseDown(e);  
-
-        auto world =  m_scene->GetCamera()->ScreenToWorld(e.MouseX,e.MouseY);
-        XMFLOAT2 screen = m_scene->GetCamera()->WorldToScreen(world);
-	    printf("[Editor] MouseDown at screen (%0.2f, %0.2f), world (%.2f, %.2f)\n", screen.x, screen.y, world.x, world.y);
-
-        // 重置状态
-        m_currentSnap = {};
-    }
-    void Editor::OnMouseMove(const InputEvent& e)
-    { 
-        m_mouseX = e.MouseX;
-        m_mouseY = e.MouseY;
-
-        if (e.IsMouseButtonDown(MouseButton::Middle)) // 平移相机
-        { 
-            m_scene->GetCamera()->Pan(e.MouseX - e.LastMouseX, e.MouseY - e.LastMouseY);
-        }
-        
-		//  每帧统一算一次，结果缓存在 m_currentSnap
-        const Camera* cam = m_scene->GetCamera(); 
- 
-        if (m_currentSnap.IsValid())
-        {
-            printf("[Editor]  CurrentSnap  (%0.2f, %0.2f) \n", m_currentSnap.WorldPos.x, m_currentSnap.WorldPos.y);
-        } 
-        
-        if (m_gripEditor.OnMouseMove(e))
-        {
-			m_gripManager.Rebuild(m_picking.GetSelection(), m_scene); // 夹点拖拽中 → 几何变了，实时重建夹点
-            return;
-        }
-
-        m_picking.OnMouseMove(e);        
-    }
-
-	// 鼠标滚轮：缩放
-    void Editor::OnMouseWheel(const InputEvent& e)
-    {
-		m_scene->GetCamera()->Zoom(e.WheelDelta, e.MouseX, e.MouseY);
-    }
-
-    void Editor::DeleteSelected()
-    {
-		auto ids = m_picking.GetSelection(); // 获取选中对象 ID 列表
-        if (ids.empty())
-            return;
-
-		std::vector<Object::ObjectID> idsVec(ids.begin(), ids.end()); // 转换为 vector
-
-        auto cmd = std::make_unique<BatchDeleteCommand>(idsVec);
-
-        m_cmdStack->Execute(std::move(cmd), *m_scene); 
-      
-    }
-
-    // ─── 选集变化 ─────────────────────────────────────────────────────────────────
-    void Editor::OnSelectionChanged()
-    {
-        m_gripManager.Rebuild(m_picking.GetSelection(), m_scene);
-    }
-     
     bool Editor::TryGetAnchor(DirectX::XMFLOAT3& out) const
     {
-        if (m_tool && m_tool->HasAnchor()) // 锚点
+        if (m_tool && m_tool->HasAnchor()) // 锚点，约束点
         {
             out = m_tool->GetAnchor();
             return true;
@@ -449,17 +366,16 @@ namespace MiniCAD
 
         if (m_gripEditor.IsDragging())
         {
-            out = m_gripEditor.GetDragStart();
+            out = m_gripEditor.GetDragBase();
             return true;
         }
 
         return false;
     }
 
-    // ── 正交 ───────────────────────────────────────
-    bool Editor::IsOrthoEnabled() const 
+    bool Editor::IsOrthoEnabled() const
     {
-        return m_orthoEnabled; 
+        return m_orthoEnabled;
     }
 
     void Editor::SetOrthoEnabled(bool enabled)
@@ -472,10 +388,12 @@ namespace MiniCAD
         printf("[Editor] Ortho: %s\n", enabled ? "ON" : "OFF");
 
     }
+
     void Editor::ToggleOrtho()
     {
         SetOrthoEnabled(!m_orthoEnabled);
     }
+
 
     bool Editor::IsSnapEnabled()
     {
@@ -497,38 +415,23 @@ namespace MiniCAD
         SetSnapEnabled(!m_snapEnabled);
     }
 
+
     void Editor::Undo()
-    {
-        if (!m_cmdStack || !m_cmdStack->CanUndo())
-            return;
+    { 
+        m_cmdStack.Undo(m_scene);
 
-        m_cmdStack->Undo(*m_scene);
-
-        OnSelectionChanged();  
+        //OnSelectionChanged();
     }
 
     void Editor::Redo()
-    {
-        if (!m_cmdStack || !m_cmdStack->CanRedo())
-            return;
+    { 
+        m_cmdStack.Redo(m_scene);
 
-        m_cmdStack->Redo(*m_scene);
-
-        OnSelectionChanged();
+        //OnSelectionChanged();
     }
 
-    void Editor::ExecuteCommand(std::unique_ptr<ICommand> cmd) 
+    void Editor::ExecuteCommand(std::unique_ptr<ICommand> cmd)
     {
-        m_cmdStack->Execute(std::move(cmd), *m_scene);
+        m_cmdStack.Execute(std::move(cmd), m_scene);
     }
-
-    void Editor::StartLineTool()
-    {
-        if (m_tool)
-            m_tool->Cancel(); // 自动退出旧工具
-
-        m_tool = std::make_unique<LineTool>(m_scene, m_cmdStack);
-
-        printf("[Editor] Start LineTool\n");
-    }
-}
+}  

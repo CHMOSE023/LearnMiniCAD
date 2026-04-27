@@ -1,7 +1,7 @@
 #pragma once
 #include "pch.h"
-  
-namespace MiniCAD 
+
+namespace MiniCAD
 {
     class ImGuiLayer
     {
@@ -13,8 +13,8 @@ namespace MiniCAD
         void End();
 
     private:
-        HWND m_hwnd = nullptr;
-        ID3D11Device*        m_device = nullptr;
-        ID3D11DeviceContext* m_context = nullptr;
+        HWND                  m_hwnd = nullptr;
+        ID3D11Device*         m_device = nullptr;
+        ID3D11DeviceContext*  m_context = nullptr;
     };
 }

@@ -9,10 +9,34 @@ namespace MiniCAD
     class Cursor
     {
     public:
-        void Build(const ViewState& state, float screenWidth, float screenHeight);
-        const std::vector<Vertex_P3_C4>& GetVerts() const { return m_verts; }
+        std::vector<Vertex_P3_C4> BuildCursor(const ViewState  state, float width, float height)
+        {
+            std::vector<Vertex_P3_C4> verts; 
 
-    private:
-        std::vector<Vertex_P3_C4> m_verts;
+            float half = 5.0f;
+            float x = state.MouseX;
+            float y = state.MouseY;
+
+            verts.push_back({ XMFLOAT3(0,          y, 0), XMFLOAT4(1,1,1,1) });
+            verts.push_back({ XMFLOAT3(width,      y, 0), XMFLOAT4(1,1,1,1) });
+            verts.push_back({ XMFLOAT3(x,     height, 0), XMFLOAT4(1,1,1,1) });
+            verts.push_back({ XMFLOAT3(x,          0, 0), XMFLOAT4(1,1,1,1) });
+             
+            if (!state.Selection.Active&& state.ShowCurrorBox)   // 正在框选,不渲染中间的方框
+            {
+                verts.push_back({ XMFLOAT3(x - half, y - half, 0), XMFLOAT4(1,1,1,1) });
+                verts.push_back({ XMFLOAT3(x + half, y - half, 0), XMFLOAT4(1,1,1,1) });
+                verts.push_back({ XMFLOAT3(x + half, y - half, 0), XMFLOAT4(1,1,1,1) });
+                verts.push_back({ XMFLOAT3(x + half, y + half, 0), XMFLOAT4(1,1,1,1) });
+                verts.push_back({ XMFLOAT3(x + half, y + half, 0), XMFLOAT4(1,1,1,1) });
+                verts.push_back({ XMFLOAT3(x - half, y + half, 0), XMFLOAT4(1,1,1,1) });
+                verts.push_back({ XMFLOAT3(x - half, y + half, 0), XMFLOAT4(1,1,1,1) });
+                verts.push_back({ XMFLOAT3(x - half, y - half, 0), XMFLOAT4(1,1,1,1) });
+
+            } 
+
+            return verts;
+        }
+
     };
 }

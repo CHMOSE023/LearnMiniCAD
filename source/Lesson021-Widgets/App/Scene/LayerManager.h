@@ -4,12 +4,9 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
-#include <string>  
-#include "Core/Object/Object.hpp"
-#include "Core/ISerializer.h"
+#include <string>   
 namespace MiniCAD
 {
-	class ISerializer;  
 	class LayerManager
 	{
 	public:
@@ -19,22 +16,18 @@ namespace MiniCAD
 
 		bool RemoveLayer(LayerID id);                   // 移除图层（不能移除默认图层 0）
 
-		Layer*       GetLayer(LayerID id);
+		Layer* GetLayer(LayerID id);
 		const Layer* GetLayer(LayerID id) const;
 
 		std::vector<LayerID> GetAllLayerIDs() const;    // 所有图层 ID 列表
 
 		LayerID GetActiveLayerID() const { return m_activeLayerID; }
-		void    SetActiveLayerID( LayerID id); 
-
-		// --- Serialization 接口 --- 		
-		void Serialize(ISerializer& s) const;		 
-		void Deserialize(ISerializer& s) ;
+		void    SetActiveLayerID(LayerID id);
 
 	private:
 		std::unordered_map< LayerID, std::unique_ptr<Layer>> m_layers;
 
-		 LayerID                m_activeLayerID = Layer::DefaultLayerID;
+		LayerID                 m_activeLayerID = Layer::DefaultLayerID;
 		std::atomic< LayerID>   m_nextID{ 1 };
 	};
 }

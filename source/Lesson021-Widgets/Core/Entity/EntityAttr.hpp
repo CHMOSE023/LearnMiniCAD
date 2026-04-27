@@ -2,7 +2,6 @@
 #include <DirectXMath.h>  
 #include <cstdint>
 using namespace DirectX;
-
 namespace MiniCAD
 {
 	using LayerID = uint32_t;
@@ -15,14 +14,16 @@ namespace MiniCAD
 		DASH_DOT
 	};
 
+
 	class EntityAttr
-	{  
+	{
 	public:
-		XMFLOAT4  Color     = { 1.0, 1.0, 1.0, 1.0 };
-		LayerID   LayerId   = 0;
-		LineType  LineType  = LineType::SOLID;
+		XMFLOAT4  Color = { 1.0, 1.0, 1.0, 1.0 };
+		LayerID   LayerId = 0;
+		LineType  LineType = LineType::SOLID;
 		float     LineWidth = 1.0;
-		bool      Visible   = true;
+		bool      Visible = true;
 	};
+
 
 }

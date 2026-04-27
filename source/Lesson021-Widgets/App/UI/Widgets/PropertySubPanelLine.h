@@ -26,6 +26,7 @@ namespace MiniCAD
 
     public:
         virtual void OnRender(Object* entity, Document& document) override;
+
     private:
         float m_labelWidth = 90.0f;
         float m_inputWidth = 180.0f;

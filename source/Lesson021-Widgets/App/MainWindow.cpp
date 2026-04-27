@@ -1,7 +1,6 @@
 #include "MainWindow.h"
 #include <ErrorReporter.h>
-#include <imgui_impl_dx11.h>
-#include <imgui_impl_win32.h>
+#include <imgui.h>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -25,17 +24,16 @@ namespace MiniCAD
 		RECT rc;
 		GetClientRect(m_hwnd, &rc);
 
-		int clientW = rc.right  - rc.left;
+		int clientW = rc.right - rc.left;
 		int clientH = rc.bottom - rc.top;
-		  
-		if (!InitD3D11(clientW, clientH)) 
-			return false; 
 
-		if (!InitViewportAndDocument(clientW, clientH)) 
+		if (!InitD3D11(clientW, clientH))
 			return false;
 
-		return m_uiManager.Init(m_hwnd,m_device->GetDevice(), m_device->GetContext());
-		 
+		if (!InitDocument(*m_renderer, clientW, clientH))
+			return false;
+
+		return m_uiManager.Init(m_hwnd, m_device->GetDevice(), m_device->GetContext());
 	}
 
 	void MainWindow::Run()
@@ -90,73 +88,48 @@ namespace MiniCAD
 		return DefWindowProcW(hwnd, msg, wParam, lParam); 
 	}
 
-	HCURSOR  MainWindow::ToWin32Cursor(ImGuiMouseCursor cursor)
-	{
-		switch (cursor)
-		{
-		case ImGuiMouseCursor_Arrow:        return LoadCursor(NULL, IDC_ARROW);
-		case ImGuiMouseCursor_TextInput:    return LoadCursor(NULL, IDC_IBEAM);
-		case ImGuiMouseCursor_ResizeAll:    return LoadCursor(NULL, IDC_SIZEALL);
-		case ImGuiMouseCursor_ResizeEW:     return LoadCursor(NULL, IDC_SIZEWE);
-		case ImGuiMouseCursor_ResizeNS:     return LoadCursor(NULL, IDC_SIZENS);
-		case ImGuiMouseCursor_ResizeNESW:   return LoadCursor(NULL, IDC_SIZENESW);
-		case ImGuiMouseCursor_ResizeNWSE:   return LoadCursor(NULL, IDC_SIZENWSE);
-		case ImGuiMouseCursor_Hand:         return LoadCursor(NULL, IDC_HAND);
-		case ImGuiMouseCursor_NotAllowed:   return LoadCursor(NULL, IDC_NO);
-		default:                            return LoadCursor(NULL, IDC_ARROW);
-		}
-	}
-
+ 
 	LRESULT MainWindow::EventProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-	{   
-		// 消息先过 ImGui
+	{ 
+		// 先让 ImGui 处理，并根据返回值决定是否拦截	
 		if (ImGui::GetCurrentContext() != nullptr)
 		{
-			ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam);			
+			if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
+				return true;  //   已处理就直接返回，不然会出现重复字符等问题。
 		}
-
 		switch (msg)
 		{
 		case WM_SIZE:
 		{
 			UINT w = LOWORD(lParam), h = HIWORD(lParam);
-			if (m_swapChain) m_swapChain->Resize(w, h); 
-			if (m_viewport)  m_viewport->Resize(w, h);
-			if (m_document)  m_document->GetEditor().OnResize(w, h);
-				
+			if (m_swapChain) m_swapChain->Resize(w, h);
+			if (m_document)  m_document->Resize(w, h);
 			return 0;
 		}
 		case WM_SETCURSOR:
-		{    
+		{
 			if (LOWORD(lParam) == HTCLIENT)
 			{
 				if (ImGui::GetCurrentContext())
-				{
-					// ImGuiLayer.cpp 禁止imgui 争夺光标
-					// ImGuiIO& io = ImGui::GetIO();
-					// io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
-					bool imguiHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemHovered();
-
-					if (imguiHovered)
+				{ 
+					ImGuiIO& io = ImGui::GetIO();
+					if (io.WantCaptureMouse) //  覆盖菜单栏/弹出层等所有 ImGui 区域
 					{
 						ImGuiMouseCursor imguiCursor = ImGui::GetMouseCursor();
 						SetCursor(ToWin32Cursor(imguiCursor));
 						return TRUE;
 					}
-				} 
+				}
 
 				SetCursor(nullptr); // CAD 区：隐藏系统光标
 				return TRUE;
 			}
-
-			return DefWindowProc(hwnd, msg, wParam, lParam);
 			return DefWindowProc(hwnd, msg, wParam, lParam);
 		}
-
 		// ───────────── 输入消息交给 InputSystem ─────────────
-		case WM_MBUTTONDOWN: 
+		case WM_MBUTTONDOWN:
 		case WM_MBUTTONUP:
-		case WM_MOUSEMOVE:		
+		case WM_MOUSEMOVE:
 		case WM_LBUTTONDOWN:
 		case WM_LBUTTONUP:
 		case WM_RBUTTONDOWN:
@@ -166,18 +139,19 @@ namespace MiniCAD
 			// 被ImGui捕获时，不转发给 CAD
 			bool imguiWantsMouse = ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse;
 			if (!imguiWantsMouse)
-				m_input.Dispatch(hwnd, msg, wParam, lParam);
+				m_inputSystem.Dispatch(hwnd, msg, wParam, lParam);
 			return 0;
 		}
 		case WM_KEYDOWN:
-		case WM_KEYUP: 
+		case WM_KEYUP:
 		{
 			// 键盘被 ImGui 捕获时，不转发给 CAD
 			bool imguiWantsKeyboard = ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureKeyboard;
 			if (!imguiWantsKeyboard)
-				m_input.Dispatch(hwnd, msg, wParam, lParam);
+				m_inputSystem.Dispatch(hwnd, msg, wParam, lParam);
 			return 0;
 		}
+
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			return 0;
@@ -254,56 +228,35 @@ namespace MiniCAD
 		SwapChain::Options opt;
 		opt.enableVSync = false;  // 禁止垂直同步，允许撕裂（仅限窗口模式）
 		opt.allowTearing = false; // 允许撕裂（仅限窗口模式）
-		 
+
+
 		m_swapChain->Initialize(m_device.get(), m_hwnd, width, height, opt);// 初始化交换链
 		m_renderer = std::make_unique<Renderer>(m_device->GetDevice(), m_device->GetContext());
+
 
 		return true;
 	}
 
-	bool MainWindow::InitViewportAndDocument(int width, int height)
-	{  
-		m_viewport = std::make_unique<Viewport>(m_renderer.get(), width, height); // 传入m_renderer
+	bool MainWindow::InitDocument(Renderer& renderer, int width, int height)
+	{
+		m_document = std::make_unique<Document>(renderer, width, height); 
 
-		m_document = std::make_unique<Document>(width, height);
-
-		m_viewport->SetCamera(m_document->GetScene().GetCamera()); // 设置相机
-
-		m_input.PushHandler(m_document.get());         // 先注册 Document，保证它优先处理输入事件
-
-		m_input.PushHandler(&m_document->GetEditor()); // 先注册 Document，保证它优先处理输入事件
-
-		// 添加一些测试数据
-		auto& scene = m_document->GetScene();
-		// 直线1
-		auto id = scene.NextObjectID();
-		auto entity = std::make_unique<LineEntity>(id,XMFLOAT3(1.5, 1.5, 0), XMFLOAT3(0, 0, 0));
-		entity->GetAttr().Color = XMFLOAT4(1, 1, 0, 1); 
-		scene.AddEntity(std::move(entity));
-
-		// 直线2
-		id = scene.NextObjectID();
-		entity = std::make_unique<LineEntity>(id, XMFLOAT3(0.5, 0.5, 0), XMFLOAT3(1, 0, 0));
-		entity->GetAttr().Color = XMFLOAT4(1, 0, 0, 1);
-		scene.AddEntity(std::move(entity));
+		m_inputSystem.PushHandler(m_document.get());  
 
 		return true;
 	}
 
 	void MainWindow::RenderFrame()
 	{
-		auto  target    = m_swapChain->GetRenderTarget(); 		 
-		auto& scene     = m_document->GetScene();
-		auto  viewState = m_document->GetEditor().BuildViewState();
-
-
-		m_viewport->RefreshRenderData(m_document->GetScene(), viewState);
-
-		m_viewport->Render(target);
-		
-		{  // ui 窗口
+		auto target = m_swapChain->GetRenderTarget(); 
+ 
+		 
+		m_document->Render(target);
+	 
+		{
+			// ui 窗口
 			m_uiManager.BeginFrame();
-			 
+
 			m_uiManager.Render(*m_document);
 
 			m_uiManager.EndFrame();
@@ -311,6 +264,23 @@ namespace MiniCAD
 
 		m_swapChain->Present();
 
+	}
+
+	HCURSOR MainWindow::ToWin32Cursor(ImGuiMouseCursor cursor)
+	{
+		switch (cursor)
+		{
+		case ImGuiMouseCursor_Arrow:        return LoadCursor(NULL, IDC_ARROW);
+		case ImGuiMouseCursor_TextInput:    return LoadCursor(NULL, IDC_IBEAM);
+		case ImGuiMouseCursor_ResizeAll:    return LoadCursor(NULL, IDC_SIZEALL);
+		case ImGuiMouseCursor_ResizeEW:     return LoadCursor(NULL, IDC_SIZEWE);
+		case ImGuiMouseCursor_ResizeNS:     return LoadCursor(NULL, IDC_SIZENS);
+		case ImGuiMouseCursor_ResizeNESW:   return LoadCursor(NULL, IDC_SIZENESW);
+		case ImGuiMouseCursor_ResizeNWSE:   return LoadCursor(NULL, IDC_SIZENWSE);
+		case ImGuiMouseCursor_Hand:         return LoadCursor(NULL, IDC_HAND);
+		case ImGuiMouseCursor_NotAllowed:   return LoadCursor(NULL, IDC_NO);
+		default:                            return LoadCursor(NULL, IDC_ARROW);
+		}
 	}
 
 }

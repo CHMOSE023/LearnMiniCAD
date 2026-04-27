@@ -1,96 +1,89 @@
-#pragma once   
+#pragma once
 #include "App/Input/IInputHandler.h" 
-#include "App/Input/InputEvent.h" 
-#include "App/Editor/Picking/Picking.h"
-#include "App/Scene/Scene.h" 
+#include "App/Scene/Scene.h"
 #include "App/CommandStack/CommandStack.h" 
+#include "App/Tools/ITool.h"
+#include "App/Overlay/Overlay.h"
+#include "App/Picking/Picking.h"
 #include "Render/Viewport/Viewport.h"
 #include <unordered_set> 
-#include <DirectXMath.h>
 #include <memory>
-#include "App/Editor/Tools/ITool.h"
-#include "Render/ViewState.h"
-#include "Grip/GripManager.h"
-#include "Grip/GripEditor.h"
-#include "Snap/SnapEngine.h"
+#include "App/Snap/SnapEngine.h"
+#include "App/Snap/SnapResult.h" 
+#include "App/Grip/GripEditor.h"
 namespace MiniCAD
-{ 
-    class Editor : public IInputHandler
-    {
-    public:
-        Editor(Scene* scene, CommandStack* cmdStack); 
+{
+	class Editor  
+	{
+	public:
+		Editor(Scene& scene, CommandStack& cmdStack, Viewport& viewport, Overlay& overlay, Picking& picking, SnapEngine& snap, SnapResult& currentSnap);
+		bool OnInput(const InputEvent& e);
 
-        bool      OnInput(const InputEvent& e) override;  
-        void      OnResize(float width, float height); 
-        ViewState BuildViewState() const;
+		// Picking 获取选择 
+		const std::unordered_set<Object::ObjectID>& GetSelection();
+		const std::unordered_set<Object::ObjectID>& GetHovered();
 
-        const std::unordered_set<Object::ObjectID>& GetSelection();
-        const std::unordered_set<Object::ObjectID>& GetHovered(); 
-
-        // 获取选择
+		// 获取选择
         Object*               GetPrimarySelectedObject();  // 获取选中单个
-        std::vector<Object*>  GetSelectedObjects();        // 获取选中多个
-
-        Scene* GetScene() const { return m_scene; }
-        bool   TryGetAnchor(DirectX::XMFLOAT3& out) const;
-
-        // ── 绘制 ───────────────────────────────────────
-        void StartLineTool();
+        std::vector<Object*>  GetSelectedObjects();        // 获取选中多个 
 
 
-        // ── 正交 ───────────────────────────────────────
-        bool IsOrthoEnabled() const;
-        void SetOrthoEnabled(bool enabled);
-        void ToggleOrtho();
-
-        // ── 捕捉 ───────────────────────────────────────
-        bool IsSnapEnabled();
-        void SetSnapEnabled(bool enabled);
-        void ToggleSnap();
-
-        // ── Undo / Redo / Command  ─────────────────────
-        void Undo();
-        void Redo();  
-        void ExecuteCommand(std::unique_ptr<ICommand> cmd);
+		// ── 获取夹点 ───────────────────────────────────────
+		GripEditor& GetGipEditor() { return m_gripEditor; };
+		const Line& GetAnchorLine()const { return m_anchorLine; };
 
 
-      
-    private:
-        void OnMouseButtonDown(const InputEvent& e);
-        void OnMouseButtonUp  (const InputEvent& e);
-        void OnKeyDown        (const InputEvent& e);
-        void OnKeyUp          (const InputEvent& e);
-        void OnMouseMove      (const InputEvent& e);   
-        void OnMouseWheel     (const InputEvent& e);
-          
-    private:
-        void DeleteSelected();
-        void OnSelectionChanged();   // 新增：选集变化时统一处理
-        void UpdateSnap(const InputEvent& e); 
-        bool ShouldSnap() const;                           // 是否允许捕获
-        InputEvent  InjectSnap(const InputEvent& e);       // 注入捕获事件
-        InputEvent  ApplyConstraints(const InputEvent& e); // 约束事件
+		const bool IsAcitveTool() { return m_tool != nullptr; };  
+		 
+		// ── 工具 ───────────────────────────────────────
+		void StartLineTool();  // 绘制线
+		void StartPointTool(); // 绘制点
+		// ── 删除选中实体 ──────────────────────────────────
+		void DeleteSelected();  
+		   
+	public:
+		// ── 正交 ───────────────────────────────────────
+		bool TryGetAnchor(DirectX::XMFLOAT3& out) const;
+		bool IsOrthoEnabled() const;
+		void SetOrthoEnabled(bool enabled);
+		void ToggleOrtho();
 
-      
-    private: 
-        Scene*        m_scene        = nullptr;      
-        CommandStack* m_cmdStack     = nullptr; 
-        Viewport*     m_view         = nullptr; 
-        bool          m_showGrid     = true;     // 网格
-        bool          m_showGizmo    = true;     // 夹点
-        bool          m_orthoEnabled = true;     // 正交
-        std::unique_ptr<ITool>   m_tool;
 
-		float 	      m_mouseX = 0.f;  // 鼠标位置（屏幕坐标）
-        float         m_mouseY = 0.f; 
+	public:
+		// ── 捕捉 ───────────────────────────────────────
+		bool IsSnapEnabled();
+		void SetSnapEnabled(bool enabled);
+		void ToggleSnap();
 
-        Picking       m_picking;
-        GripManager   m_gripManager;   // 新增
-        GripEditor    m_gripEditor;    // 新增
+	public:
+		// ── Undo / Redo / Command  ─────────────────────
+		void Undo();
+		void Redo();
+		void ExecuteCommand(std::unique_ptr<ICommand> cmd); 
+	
+	private:
+		bool HandleGlobal(const InputEvent& e);
+		bool HandleDefault(const InputEvent& e);
+	private:
+		bool          ShouldSnap() const;                     // 允许捕获 
+		void          UpdateSnap(const InputEvent& e);        // 更新捕获点currentSnap
+		InputEvent    InjectSnap(const InputEvent& e);        // 注入捕获点 
+		InputEvent    ApplyConstraints(const InputEvent& e);  // 约束事件
+	private:
+		Scene&        m_scene;            
+		CommandStack& m_cmdStack;		   
+		Viewport&     m_viewport;		   
+		Overlay&      m_overlay;
 
-        SnapEngine    m_snap;
-        SnapResult    m_currentSnap;
+		Picking&      m_picking; 
+		std::unique_ptr<ITool>   m_tool;
 
-        bool         m_snapEnabled = true;
-    };
+		SnapEngine&   m_snap;
+		SnapResult&   m_currentSnap;  
+		bool          m_snapEnabled = true; 
+
+		GripEditor    m_gripEditor;           // 新增 
+		bool          m_orthoEnabled = false; // 正交
+		Line          m_anchorLine;           // 约束辅助线
+	};
 }

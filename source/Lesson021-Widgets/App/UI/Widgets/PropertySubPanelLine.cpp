@@ -4,13 +4,17 @@
 #include "Core/Entity/LineEntity.hpp"
 #include "App/Document/Document.h"
 #include "App/Command/UpdateLineEntityCommand.h"
+#include "App/Command/BatchCommand.h"
 #include <imgui.h> 
+#include <memory>
 namespace MiniCAD
 {
 	void PropertySubPanelLine::OnRender(Object* entity, Document& document)
 	{  
         auto* object = document.GetEditor().GetPrimarySelectedObject();
 
+        auto  objectids = document.GetEditor().GetSelection(); 
+        
         if (!object)
         {
             ImGui::Text("未选择对象"); 
@@ -28,11 +32,10 @@ namespace MiniCAD
 
             auto* lineEntity = static_cast<LineEntity*>(object);
 
-            Line before         = lineEntity->GetLine();
-            Line temp           = before;
-            //auto &attr           = lineEntity->GetAttr(); // 假设有 Attr 结构
+            Line before           = lineEntity->GetLine();
+            Line temp             = before; 
             EntityAttr attrBefore = lineEntity->GetAttr(); // 拷贝，保存原始状态
-            EntityAttr attrTemp = attrBefore;              // 拷贝，用于UI修改
+            EntityAttr attrTemp   = attrBefore;              // 拷贝，用于UI修改
 
             bool anyDeactivated = false;
              
@@ -108,7 +111,7 @@ namespace MiniCAD
             ImGui::Text("线型");
             ImGui::SameLine(m_labelWidth);
             ImGui::PushItemWidth(m_inputWidth);
-            const char* lineTypes[] = { "实线", "虚线", "点线", "点划线" };
+            const char* lineTypes[] = { "实线"/*, "虚线", "点线", "点划线"*/ };
             int lineTypeIndex = static_cast<int>(attrTemp.LineType);
             if (ImGui::Combo("##线型", &lineTypeIndex, lineTypes, IM_ARRAYSIZE(lineTypes)))
             {
@@ -141,9 +144,7 @@ namespace MiniCAD
             {
                 anyDeactivated = true;
             }
-
-
-
+              
             ImGui::Unindent(10.0f);
             ImGui::Separator();
             // --- 几何图形-----------  
@@ -220,22 +221,42 @@ namespace MiniCAD
 
             if (anyDeactivated)
             {
-                LineEntityState beforeState;
-                beforeState.line = before;
-                beforeState.attr = attrBefore; // 修改前的状态
+                auto objectids = document.GetEditor().GetSelection();
 
-                LineEntityState afterState;
-                afterState.line = temp;
-                afterState.attr = attrTemp;    // 修改后的状态
-                printf("压栈操作\n");
+                if (objectids.size() == 1)
+                {
+                    // 单个修改
+                    document.GetEditor().ExecuteCommand(
+                        std::make_unique<UpdateLineEntityCommand>(
+                            lineEntity->GetID(),
+                            LineEntityState{ before, attrBefore },
+                            LineEntityState{ temp, attrTemp }
+                        )
+                    );
+                }
+                else
+                {
+                    // 批量修改
+                    std::vector<std::unique_ptr<ICommand>> cmds;
 
-                document.GetEditor().ExecuteCommand(
-                    std::make_unique<UpdateLineEntityCommand>(
-                        lineEntity->GetID(),
-                        beforeState,
-                        afterState
-                    )
-                );
+                    for (auto id : objectids)
+                    {
+                        auto* obj = document.GetScene().GetEntity(id);
+                        if (!obj || !obj->IsKindOf<LineEntity>()) continue;
+
+                        auto* le = static_cast<LineEntity*>(obj);
+
+                        LineEntityState bs, as;
+                        bs.line = le->GetLine();
+                        bs.attr = le->GetAttr();
+                        as.line = bs.line;         // 几何坐标各自保留
+                        as.attr = attrTemp;        // 属性统一应用主选对象的值
+
+                        cmds.push_back(std::make_unique<UpdateLineEntityCommand>(id, bs, as));
+                    }
+
+                    document.GetEditor().ExecuteCommand(std::make_unique<BatchCommand>(std::move(cmds)));
+                }
             }
         }
          
