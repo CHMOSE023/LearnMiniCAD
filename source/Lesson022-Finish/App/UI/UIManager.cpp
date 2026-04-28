@@ -1,0 +1,188 @@
+#include "UIManager.h"
+#include <imgui.h>
+#include <imgui_impl_dx11.h>
+#include <imgui_impl_win32.h>
+#include <imgui_internal.h> 
+#include <memory>
+#include "App/Document/Document.h"
+#include "Widgets/Menubar.h"
+#include "Widgets/PropertyPanel.h"
+#include "Widgets/StatusBar.h"
+#include "Widgets/ToolBar.h"
+#include "Widgets/ToolBar.h"
+#include "Widgets/LayerManagerWidget.h" 
+#include "App/Document/DocumentManager.h"
+namespace MiniCAD
+{
+    bool UIManager::Init(HWND hwnd, ID3D11Device* device, ID3D11DeviceContext* context)
+    {
+        m_imgui = std::make_unique<ImGuiLayer>();
+        if (!m_imgui->Init(hwnd, device, context))
+            return false;
+          
+        m_widgets.push_back(std::make_unique<Menubar>(this));        // 菜单栏，管理各面板
+        m_widgets.push_back(std::make_unique<PropertyPanel>());      // 添加属性面板
+        m_widgets.push_back(std::make_unique<StatusBar>());          // 状态栏
+        m_widgets.push_back(std::make_unique<ToolBar>());            // 工具栏 
+        m_widgets.push_back(std::make_unique<LayerManagerWidget>()); // 图层管理
+
+        
+        // 统一初始化状态 
+        FindWidget("layer_manager_widget")->SetVisible(false);
+        FindWidget("property_panel")->SetVisible(false);
+
+
+        ImGuiIO& io = ImGui::GetIO();
+        io.Fonts->AddFontFromFileTTF(
+            "C:/Windows/Fonts/msyh.ttc",
+            16.0f,
+            nullptr,
+            io.Fonts->GetGlyphRangesChineseFull()
+        );
+
+        ImGuiStyle& style = ImGui::GetStyle();
+        style.WindowRounding   = 4.0f;
+        style.FrameRounding    = 3.0f;
+        style.ChildRounding    = 3.0f;
+        style.WindowPadding    = ImVec2(6, 6);  // 不能为 (0,0)，否则标题栏拖拽失效
+        style.FramePadding     = ImVec2(4, 2);
+        style.ItemSpacing      = ImVec2(4, 4);
+        style.WindowBorderSize = 1.0f;          // 保留，停靠预览高亮边框需要
+        style.ChildBorderSize  = 1.0f;
+        style.FrameBorderSize  = 0.0f;
+
+         // ImGui::StyleColorsLight();          // 明亮风格
+         ImGui::StyleColorsClassic();
+          // ImGui::StyleColorsDark();
+        return true;
+    }
+
+
+    void UIManager::Shutdown()
+    {
+        m_imgui->Shutdown();
+    }
+
+    void UIManager::BeginFrame()
+    {
+        m_imgui->Begin();
+    }
+
+    void UIManager::EndFrame()
+    {
+        m_imgui->End();
+    }
+
+    ImGuiWidgetBase* UIManager::FindWidget(const std::string& id)
+    {
+        for (auto& w : m_widgets)
+        {  
+            if (id == w->GetID())
+                return w.get(); 
+        }
+        return nullptr;
+    }
+
+    // =========================================================
+   // 主渲染入口
+   // =========================================================
+    void UIManager::Render(DocumentManager& dm)
+    {
+        DrawDockSpace();
+        DrawDocumentTabs(dm);
+
+        if (auto* doc = dm.GetActive())
+        {
+            for (auto& w : m_widgets)
+            {
+                if (w->IsVisible())
+                    w->OnRender(*doc);
+            }
+        }  
+    }
+
+    void  UIManager::DrawDocumentTabs(DocumentManager& dm)
+    {
+        if (!ImGui::BeginTabBar("Documents##Main"))
+            return;
+
+        auto& docs = dm.GetAll();
+        Document* active = dm.GetActive();
+
+        for (auto& docPtr : docs)
+        {
+            Document* doc = docPtr.get();
+
+            bool open = true;
+
+            std::string title = doc->GetName();
+            if (doc->IsDirty())
+                title += " *";
+
+            title += "##";
+            title += std::to_string((uintptr_t)doc);
+
+            bool isActive = (doc == active);
+
+            // 关键：ImGui 用 selected 驱动 UI 状态
+            if (ImGui::BeginTabItem(title.c_str(), &open,
+                isActive ? ImGuiTabItemFlags_SetSelected : 0))
+            {
+                // ❗ 点击检测必须在 TabItem 外部做
+                if (ImGui::IsItemClicked())
+                {
+                    dm.SetActive(doc);
+                }
+
+                ImGui::EndTabItem();
+            }
+
+            if (!open)
+            {
+                dm.Close(doc);
+
+                if (doc == active)
+                    dm.SetActive(nullptr);
+
+                break;
+            }
+        }
+
+        ImGui::EndTabBar();
+    }
+
+    // =========================================================
+    // DockSpace
+    // =========================================================
+    void UIManager::DrawDockSpace()
+    {
+        ImGuiViewport* vp = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(vp->WorkPos);
+        ImGui::SetNextWindowSize(vp->WorkSize);
+        ImGui::SetNextWindowViewport(vp->ID);
+
+        ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar            |
+                                 ImGuiWindowFlags_NoCollapse            |
+                                 ImGuiWindowFlags_NoResize              |
+                                 ImGuiWindowFlags_NoMove                |
+                                 ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                 ImGuiWindowFlags_NoNavFocus            |
+                                 ImGuiWindowFlags_NoBackground          ;
+         
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::Begin("DockRoot", nullptr, flags);
+        ImGui::PopStyleVar();
+
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, 100));
+
+      
+
+        ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0, 0),   ImGuiDockNodeFlags_PassthruCentralNode);
+
+        ImGui::End();
+    }
+
+
+}
