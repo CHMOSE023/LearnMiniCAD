@@ -1,16 +1,18 @@
 #include "MainWindow.h"
 #include <ErrorReporter.h>
 #include <imgui.h>
+#include "Document/DocumentManager.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace MiniCAD
 {
-	MainWindow::MainWindow() 
+	MainWindow::MainWindow()
 		: m_hwnd(0)
 		, m_device(nullptr)
 		, m_swapChain(nullptr)
-		, m_renderer(nullptr)
+		, m_renderer(nullptr) 
+		,m_docManager()
 	{}
 
 	MainWindow::~MainWindow()
@@ -268,7 +270,8 @@ namespace MiniCAD
 		auto target = m_swapChain->GetRenderTarget();
 		 
 		if (auto doc = m_docManager.GetActive())
-		{
+		{ 
+			doc->Resize(target.viewport.Width, target.viewport.Height);
 			doc->Render(target);
 		} 
 

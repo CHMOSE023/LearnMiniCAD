@@ -1,9 +1,12 @@
-#include "Document.h"
+#pragma once
+#include "Document.h" 
 namespace MiniCAD
 {
     class DocumentManager
-    {
+    {  
     public:
+        DocumentManager() = default;
+
         Document& Create(Renderer& r, float w, float h);
 
         void Close(Document* doc); 
@@ -18,8 +21,14 @@ namespace MiniCAD
         std::vector<std::unique_ptr<Document>>& GetAll() { return m_docs; }
 
     private:
+        std::string GenerateUniqueName();
+
+    private:
         std::vector<std::unique_ptr<Document>> m_docs; 
 
         Document* m_active = nullptr;
+          
+    private:
+        int m_untitledCounter = 0;
     };
 }
