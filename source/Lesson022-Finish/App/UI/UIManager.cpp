@@ -112,38 +112,29 @@ namespace MiniCAD
         for (auto& docPtr : docs)
         {
             Document* doc = docPtr.get();
-
             bool open = true;
 
-            std::string title = doc->GetName();
+            ImGui::PushID(doc);
+
+            std::string label = doc->GetName();
             if (doc->IsDirty())
-                title += " *";
+                label += " *";
 
-            title += "##";
-            title += std::to_string((uintptr_t)doc);
-
-            bool isActive = (doc == active);
-
-            // 关键：ImGui 用 selected 驱动 UI 状态
-            if (ImGui::BeginTabItem(title.c_str(), &open,
-                isActive ? ImGuiTabItemFlags_SetSelected : 0))
+            if (ImGui::BeginTabItem(label.c_str(), &open))
             {
-                // ❗ 点击检测必须在 TabItem 外部做
-                if (ImGui::IsItemClicked())
-                {
+                if (doc != active)
                     dm.SetActive(doc);
-                }
 
                 ImGui::EndTabItem();
             }
 
+            ImGui::PopID();
+
             if (!open)
             {
                 dm.Close(doc);
-
                 if (doc == active)
                     dm.SetActive(nullptr);
-
                 break;
             }
         }

@@ -1,11 +1,18 @@
 #include "DocumentManager.h"
+#include "Document.h"
+#include "Render/D3D11/Renderer.h"
+#include <utility>
+#include <memory>
+#include <string>
 namespace MiniCAD
 {
     Document& DocumentManager::Create(Renderer& r, float w, float h)
     {
         auto doc = std::make_unique<Document>(r, w, h);
 
-        m_active = doc.get();              
+        doc->SetName(GenerateUniqueName());
+
+        m_active = doc.get();
         m_docs.push_back(std::move(doc));
 
         return *m_active;
@@ -26,6 +33,33 @@ namespace MiniCAD
 
         if (!m_docs.empty() && m_active == nullptr)
             m_active = m_docs.back().get();
+    }
+
+    std::string DocumentManager::GenerateUniqueName()
+    {
+        int index = 0;
+
+        while (true)
+        {
+            std::string name = "Untitled";
+            if (index > 0)
+                name += " " + std::to_string(index);
+
+            bool exists = false;
+            for (auto& d : m_docs)
+            {
+                if (d->GetName() == name)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+
+            if (!exists)
+                return name;
+
+            index++;
+        }
     }
 
 
