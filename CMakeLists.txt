@@ -14,6 +14,7 @@ add_library(imgui
     thirdParty/imgui/imgui_draw.cpp
     thirdParty/imgui/imgui_widgets.cpp
     thirdParty/imgui/imgui_tables.cpp
+    thirdParty/imgui/imgui_demo.cpp
     thirdParty/imgui/backends/imgui_impl_win32.cpp
     thirdParty/imgui/backends/imgui_impl_dx11.cpp
 )
