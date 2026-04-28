@@ -47,9 +47,9 @@ LearnMiniCAD/
 │   ├── Lesson13-Picking/          # 教程 13: 实时选择实体
 │   ├── Lesson14-ViewState/        # 教程 14: Viewport中的视图状态
 │   ├── Lesson15-RenderPass/       # 教程 15: 分批渲染光标、轴网、实体类
-│   ├── Lesson16-Grip/             # 教程 16: 实体夹点计算
+│   ├── Lesson16-Cursor/           # 教程 16: 光标样式及轴网
 │   ├── Lesson17-Snap/             # 教程 17: 实体最近点
-│   ├── Lesson18-Drag/             # 教程 18: 拖拽编辑
+│   ├── Lesson18-Drag/             # 教程 18: 拖拽夹点编辑实体
 │   ├── Lesson19-Constraint/       # 教程 19: 实现正交约束
 │   ├── Lesson20-ImGui/            # 教程 20: ImGui 初始化
 │   └── Lesson21-Widgets/          # 教程 21: ImGui 封装UI组件
