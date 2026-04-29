@@ -32,6 +32,7 @@ int  g_height = 1600;
 
 void InitOffscreen();
 void RenderOffscreen();
+void RenderViewport();
 bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
 void CreateRenderTarget();
@@ -45,23 +46,16 @@ struct VSConstants { float vp[16]; };
 struct ViewportState
 {
     // --- 图像信息 ---
-    ImVec2 image_min;   // 屏幕坐标：左上角
-    ImVec2 image_size;  // 显示尺寸（窗口中）
+    ImVec2 viewport_size;  // 显示尺寸（窗口中）
+    ImVec2 viewport_min;   // 屏幕坐标：左上角
+    ImVec2 viewport_max;   // 屏幕坐标：右下角
 
     // --- 输入 ---
     ImVec2 mouse_pos;   // 鼠标屏幕坐标
-    ImVec2 mouse_local; // 相对图像坐标
-    ImVec2 uv;          // 0~1 归一化坐标
-
-    // --- 相机（核心）---
-    ImVec2 offset = ImVec2(0, 0); // 平移（世界坐标）
-    float  scale = 1.0f;          // 缩放
-
-    // --- 纹理 ---
-    ImVec2 texture_size = ImVec2(1024, 1024); // 实际纹理尺寸
-
-    // --- 推导结果 ---
-    ImVec2 world_pos; // 鼠标在“图像世界中的位置”
+    ImVec2 mouse_local; // 相对图像坐标 
+        
+    float  wheel = 0;   // 滚轮
+    ImVec2 delta;       // 偏移量
 };
 
 int main(int, char**)
@@ -92,8 +86,10 @@ int main(int, char**)
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;          
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       
-     
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;    
+
+    io.ConfigWindowsMoveFromTitleBarOnly = true; // 只能通过标题栏
+
     ImGui::StyleColorsDark(); 
      
     ImGuiStyle& style = ImGui::GetStyle();
@@ -144,110 +140,16 @@ int main(int, char**)
             g_ResizeWidth = g_ResizeHeight = 0;
             CreateRenderTarget();
         }
-
-        // Lesson024 -> 2.离屏渲染三角形
-        RenderOffscreen();
+         
 
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        
-        ViewportState state;
-        state.texture_size = ImVec2((float)g_width, (float)g_height);
-         
-        // 1.显示图像, 
-        {
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+        RenderOffscreen();
 
-            ImGui::Begin("Lesson103-ImGuiViewport");
-
-            ImVec2 size = ImGui::GetContentRegionAvail();
-            state.image_size = size;
-
-            static bool initialized = false;
-            if (!initialized)
-            {
-                state.offset.x = (state.texture_size.x - size.x) * 0.5f;
-                state.offset.y = (state.texture_size.y - size.y) * 0.5f;
-                initialized = true;
-            }
-             
-            // ===== 3. 绘制图像 =====
-            ImGui::Image(g_offSrv, size);
-
-            // ===== 4. 鼠标 & 坐标 =====
-            state.image_min    = ImGui::GetItemRectMin();
-            state.mouse_pos    = ImGui::GetMousePos();
-
-            state.mouse_local.x = state.mouse_pos.x - state.image_min.x;
-            state.mouse_local.y = state.mouse_pos.y - state.image_min.y;
-
-            // UV
-            state.uv.x = state.mouse_local.x / state.image_size.x;
-            state.uv.y = state.mouse_local.y / state.image_size.y;
-
-            state.uv.x = ImClamp(state.uv.x, 0.0f, 1.0f);
-            state.uv.y = ImClamp(state.uv.y, 0.0f, 1.0f);
-
-            // 世界坐标
-            state.world_pos.x = state.mouse_local.x / state.scale + state.offset.x;
-            state.world_pos.y = state.mouse_local.y / state.scale + state.offset.y;
-
-            // =====   缩放（滚轮）=====
-            if (ImGui::IsItemHovered())
-            {
-                float wheel = ImGui::GetIO().MouseWheel;
-
-                if (wheel != 0.0f)
-                {
-                    // 缩放前鼠标世界坐标
-                    ImVec2 mouse_before = state.world_pos;
-
-                    // 修改缩放
-                    state.scale += wheel * 0.1f;
-                    state.scale = ImClamp(state.scale, 0.1f, 10.0f);
-
-                    // 缩放后重新计算
-                    ImVec2 mouse_after;
-                    mouse_after.x = state.mouse_local.x / state.scale + state.offset.x;
-                    mouse_after.y = state.mouse_local.y / state.scale + state.offset.y;
-
-                    // 调整offset（关键）
-                    state.offset.x += (mouse_before.x - mouse_after.x);
-                    state.offset.y += (mouse_before.y - mouse_after.y);
-                }
-            }
-
-            // ===== 6. 平移（右键拖拽）=====
-            if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
-            {
-                ImVec2 delta = ImGui::GetIO().MouseDelta;
-
-                state.offset.x -= delta.x / state.scale;
-                state.offset.y -= delta.y / state.scale;
-            }
-
-            ImGui::End();
-            ImGui::PopStyleVar(2);
-        }
-         
-        {
-            // ===== 7. 调试信息窗口 =====
-            ImGui::Begin("Image Info");
-
-            ImGui::Text("Mouse Local : %.1f, %.1f", state.mouse_local.x, state.mouse_local.y);
-            ImGui::Text("UV          : %.3f, %.3f", state.uv.x, state.uv.y);
-            ImGui::Text("World       : %.1f, %.1f", state.world_pos.x, state.world_pos.y);
-            ImGui::Text("Offset      : %.1f, %.1f", state.offset.x, state.offset.y);
-            ImGui::Text("Scale       : %.2f", state.scale);
-
-            ImGui::End();
-
-        }
-
-
+        RenderViewport();
+          
         ImGui::Render();
         const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
         g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
@@ -433,6 +335,9 @@ void InitOffscreen()
    
 };
 
+/// <summary>
+/// Lesson101-OffScreenRendering
+/// </summary>
 void RenderOffscreen()
 {
     float c[4] = { 0.3f, 0.0f, 0.0f, 1.0f };
@@ -480,6 +385,94 @@ void RenderOffscreen()
 
     g_pd3dDeviceContext->OMSetRenderTargets(0, nullptr, nullptr);
 
+}
+
+/// <summary>
+/// Lesson103-ImGuiViewport
+/// </summary>
+void RenderViewport()
+{
+    ViewportState state{};
+
+    // ===== 默认初始化（防御式，避免脏值）=====
+    state.delta = ImVec2(0, 0);
+    state.wheel = 0.0f;
+    state.mouse_local = ImVec2(-1, -1); //
+
+    // ===== 1. 视口窗口 =====
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+
+    ImGui::Begin("Lesson103-ImGuiViewport");
+
+    ImVec2 size = ImGui::GetContentRegionAvail();
+    state.viewport_size = size;
+
+    // ===== 渲染图像 =====
+    ImGui::Image(g_offSrv, size);
+
+    state.viewport_min = ImGui::GetItemRectMin();
+    state.viewport_max = ImGui::GetItemRectMax();
+
+    // ===== 鼠标位置（安全获取）=====
+    ImVec2 mouse = ImGui::GetMousePos();
+    if (!ImGui::IsMousePosValid(&mouse))
+    {
+        mouse = ImVec2(0, 0);
+    }
+    state.mouse_pos = mouse;
+
+    // ===== Hover 判断 =====
+    bool hovered = ImGui::IsItemHovered();
+
+    // ===== 局部坐标（仅在 hovered 时有效）=====
+    if (hovered)
+    {
+        state.mouse_local.x = mouse.x - state.viewport_min.x;
+        state.mouse_local.y = mouse.y - state.viewport_min.y;
+
+        state.mouse_local.x = ImClamp(state.mouse_local.x, 0.0f, state.viewport_size.x);
+        state.mouse_local.y = ImClamp(state.mouse_local.y, 0.0f, state.viewport_size.y);
+    }
+
+    // ===== 缩放（滚轮）=====
+    if (hovered)
+    {
+        float wheel = ImGui::GetIO().MouseWheel;
+        if (wheel != 0.0f)
+        {
+            state.wheel = wheel;
+        }
+    }
+
+    // ===== 平移（中键拖拽）=====
+    if (hovered && ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
+    {
+        state.delta = ImGui::GetIO().MouseDelta;
+
+        printf("Dragging: %.2f, %.2f\n", state.delta.x, state.delta.y);
+    }
+
+    // ===== 中键点击（可选调试）=====
+    if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Middle))
+    {
+        printf("Middle Click\n");
+    }
+
+    ImGui::End();
+    ImGui::PopStyleVar(2);
+
+    // ===== 2. Debug 窗口 =====
+    ImGui::Begin("Viewport Info");
+
+    ImGui::Text("Viewport min   : %.1f, %.1f", state.viewport_min.x,  state.viewport_min.y);
+    ImGui::Text("Viewport size  : %.1f, %.1f", state.viewport_size.x, state.viewport_size.y);
+    ImGui::Text("Mouse pos      : %.1f, %.1f", state.mouse_pos.x,     state.mouse_pos.y);
+    ImGui::Text("Mouse local    : %.1f, %.1f", state.mouse_local.x,   state.mouse_local.y);
+    ImGui::Text("Delta          : %.1f, %.1f", state.delta.x,         state.delta.y);
+    ImGui::Text("Wheel          : %.1f",       state.wheel);
+
+    ImGui::End();
 }
 
 void CleanupDeviceD3D()
