@@ -28,7 +28,7 @@ ID3D11InputLayout*         g_ql      = nullptr;
 ID3D11SamplerState*        g_samp    = nullptr;  // GPU“怎么从纹理里取颜色”
 
 HWND g_wnd; 
-int  g_wight = 800;
+int  g_width = 800;
 int  g_height = 600;
 
 struct TVertex     { float x, y, z, r, g, b, a; };
@@ -49,7 +49,7 @@ void InitWindow()
     wc.lpszClassName = L"D3D";
     RegisterClass(&wc);
 
-    g_wnd = CreateWindow(wc.lpszClassName, L"D3D11 Offscreen", WS_OVERLAPPEDWINDOW, 100, 100, g_wight, g_height, 0, 0, GetModuleHandle(0), 0);
+    g_wnd = CreateWindow(wc.lpszClassName, L"D3D11 Offscreen", WS_OVERLAPPEDWINDOW, 100, 100, g_width, g_height, 0, 0, GetModuleHandle(0), 0);
 
     ShowWindow(g_wnd, SW_SHOW);
 }
@@ -77,7 +77,7 @@ void InitD3D()
 {
     DXGI_SWAP_CHAIN_DESC sd = {};
     sd.BufferCount          = 1;
-    sd.BufferDesc.Width     = g_wight;
+    sd.BufferDesc.Width     = g_width;
     sd.BufferDesc.Height    = g_height;
     sd.BufferDesc.Format    = DXGI_FORMAT_R8G8B8A8_UNORM;
     sd.BufferUsage          = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -115,7 +115,7 @@ void InitD3D()
 
     // ================= Offscreen =================
     D3D11_TEXTURE2D_DESC td = {};
-    td.Width                = g_wight;
+    td.Width                = g_width;
     td.Height               = g_height;
     td.MipLevels            = 1;
     td.ArraySize            = 1;
@@ -272,7 +272,7 @@ void Render()
 
     // ================= PASS 1 =================   
 
-    D3D11_VIEWPORT vp = { 0,0,(float)g_wight,(float)g_height,0,1 };
+    D3D11_VIEWPORT vp = { 0,0,(float)g_width,(float)g_height,0,1 };
     g_ctx->RSSetViewports(1, &vp);
 
     g_ctx->OMSetRenderTargets   (1, &g_offRtv, nullptr);

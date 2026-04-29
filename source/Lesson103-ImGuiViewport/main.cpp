@@ -1,10 +1,11 @@
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
 #include <d3d11.h> 
 #include <cstdio>
-#include <d3dcompiler.h>
-#pragma comment(lib,"d3dcompiler.lib")
+#include <d3dcompiler.h> 
+#include <algorithm>
 
 // Data
 static ID3D11Device*            g_pd3dDevice = nullptr;
@@ -40,6 +41,28 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 struct TVertex     { float x, y, z, r, g, b, a; }; 
 struct VSConstants { float vp[16]; };
+
+struct ViewportState
+{
+    // --- 图像信息 ---
+    ImVec2 image_min;   // 屏幕坐标：左上角
+    ImVec2 image_size;  // 显示尺寸（窗口中）
+
+    // --- 输入 ---
+    ImVec2 mouse_pos;   // 鼠标屏幕坐标
+    ImVec2 mouse_local; // 相对图像坐标
+    ImVec2 uv;          // 0~1 归一化坐标
+
+    // --- 相机（核心）---
+    ImVec2 offset = ImVec2(0, 0); // 平移（世界坐标）
+    float  scale = 1.0f;          // 缩放
+
+    // --- 纹理 ---
+    ImVec2 texture_size = ImVec2(1024, 1024); // 实际纹理尺寸
+
+    // --- 推导结果 ---
+    ImVec2 world_pos; // 鼠标在“图像世界中的位置”
+};
 
 int main(int, char**)
 {
@@ -129,28 +152,101 @@ int main(int, char**)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        // 1.显示图像 ,这个一个操作窗口 需要平移操作等怎么弄呢？
+        
+        ViewportState state;
+        state.texture_size = ImVec2((float)g_width, (float)g_height);
+         
+        // 1.显示图像, 
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   ImVec2(0, 0));
-            ImGui::Begin("Lesson102-ImGuiImage");
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+
+            ImGui::Begin("Lesson103-ImGuiViewport");
+
             ImVec2 size = ImGui::GetContentRegionAvail();
-            ImGui::Image(g_offSrv, size); 
+            state.image_size = size;
+
+            static bool initialized = false;
+            if (!initialized)
+            {
+                state.offset.x = (state.texture_size.x - size.x) * 0.5f;
+                state.offset.y = (state.texture_size.y - size.y) * 0.5f;
+                initialized = true;
+            }
+             
+            // ===== 3. 绘制图像 =====
+            ImGui::Image(g_offSrv, size);
+
+            // ===== 4. 鼠标 & 坐标 =====
+            state.image_min    = ImGui::GetItemRectMin();
+            state.mouse_pos    = ImGui::GetMousePos();
+
+            state.mouse_local.x = state.mouse_pos.x - state.image_min.x;
+            state.mouse_local.y = state.mouse_pos.y - state.image_min.y;
+
+            // UV
+            state.uv.x = state.mouse_local.x / state.image_size.x;
+            state.uv.y = state.mouse_local.y / state.image_size.y;
+
+            state.uv.x = ImClamp(state.uv.x, 0.0f, 1.0f);
+            state.uv.y = ImClamp(state.uv.y, 0.0f, 1.0f);
+
+            // 世界坐标
+            state.world_pos.x = state.mouse_local.x / state.scale + state.offset.x;
+            state.world_pos.y = state.mouse_local.y / state.scale + state.offset.y;
+
+            // =====   缩放（滚轮）=====
             if (ImGui::IsItemHovered())
             {
-                ImVec2 image_min  = ImGui::GetItemRectMin();
-                ImVec2 image_size = ImGui::GetItemRectSize();
-                ImVec2 mouse      = ImGui::GetMousePos();
+                float wheel = ImGui::GetIO().MouseWheel;
 
-                ImVec2 uv = ImVec2((mouse.x - image_min.x) / image_size.x, (mouse.y - image_min.y) / image_size.y);
+                if (wheel != 0.0f)
+                {
+                    // 缩放前鼠标世界坐标
+                    ImVec2 mouse_before = state.world_pos;
 
-                printf("%0.3f,%0.3f\n", size.x, size.y);
-                printf("UV: %.3f, %.3f\n", uv.x, uv.y);
+                    // 修改缩放
+                    state.scale += wheel * 0.1f;
+                    state.scale = ImClamp(state.scale, 0.1f, 10.0f);
 
+                    // 缩放后重新计算
+                    ImVec2 mouse_after;
+                    mouse_after.x = state.mouse_local.x / state.scale + state.offset.x;
+                    mouse_after.y = state.mouse_local.y / state.scale + state.offset.y;
+
+                    // 调整offset（关键）
+                    state.offset.x += (mouse_before.x - mouse_after.x);
+                    state.offset.y += (mouse_before.y - mouse_after.y);
+                }
             }
+
+            // ===== 6. 平移（右键拖拽）=====
+            if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
+            {
+                ImVec2 delta = ImGui::GetIO().MouseDelta;
+
+                state.offset.x -= delta.x / state.scale;
+                state.offset.y -= delta.y / state.scale;
+            }
+
             ImGui::End();
             ImGui::PopStyleVar(2);
         }
+         
+        {
+            // ===== 7. 调试信息窗口 =====
+            ImGui::Begin("Image Info");
+
+            ImGui::Text("Mouse Local : %.1f, %.1f", state.mouse_local.x, state.mouse_local.y);
+            ImGui::Text("UV          : %.3f, %.3f", state.uv.x, state.uv.y);
+            ImGui::Text("World       : %.1f, %.1f", state.world_pos.x, state.world_pos.y);
+            ImGui::Text("Offset      : %.1f, %.1f", state.offset.x, state.offset.y);
+            ImGui::Text("Scale       : %.2f", state.scale);
+
+            ImGui::End();
+
+        }
+
 
         ImGui::Render();
         const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
@@ -166,8 +262,8 @@ int main(int, char**)
         }
 
         // Present
-        HRESULT hr = g_pSwapChain->Present(1, 0);   // Present with vsync
-        //HRESULT hr = g_pSwapChain->Present(0, 0); // Present without vsync
+        HRESULT hr = g_pSwapChain->Present(1, 0);   // Present with vsync 
+
         g_SwapChainOccluded = (hr == DXGI_STATUS_OCCLUDED);
     }
 
