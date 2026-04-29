@@ -1,38 +1,40 @@
 #include <windows.h>
 #include <d3d11.h>
-#include <d3dcompiler.h>
+#include <d3dcompiler.h>   
 
-#pragma comment(lib,"d3d11.lib")
-#pragma comment(lib,"d3dcompiler.lib")
+IDXGISwapChain*            g_swap    = nullptr;
+ID3D11Device*              g_dev     = nullptr;
+ID3D11DeviceContext*       g_ctx     = nullptr;
 
-IDXGISwapChain*            gSwap    = nullptr;
-ID3D11Device*              gDev     = nullptr;
-ID3D11DeviceContext*       gCtx     = nullptr;
-
-ID3D11RenderTargetView*    gBackRTV = nullptr;
+ID3D11RenderTargetView*    g_backRTV = nullptr;
 
 // Offscreen(离屏渲染 核心三件套)
-ID3D11Texture2D*           gOffTex  = nullptr;  // GPU 上真实存像素的“图片内存”
-ID3D11RenderTargetView*    gOffRTV  = nullptr;  // 让 GPU “可以往这张纹理画东西”
-ID3D11ShaderResourceView*  gOffSRV  = nullptr;  // 让 shader 可以读取这张纹理
+ID3D11Texture2D*           g_offTex  = nullptr;  // GPU 上真实存像素的“图片内存”
+ID3D11RenderTargetView*    g_offRtv  = nullptr;  // 让 GPU “可以往这张纹理画东西”
+ID3D11ShaderResourceView*  g_offSRv  = nullptr;  // 让 shader 可以读取这张纹理 
 
 // Triangle(三角形)
-ID3D11Buffer*              gVB      = nullptr;
-ID3D11VertexShader*        gVS      = nullptr;
-ID3D11PixelShader*         gPS      = nullptr;
-ID3D11InputLayout*         gLayout  = nullptr;
+ID3D11Buffer*              g_vsConst = nullptr;
+ID3D11Buffer*              g_vb      = nullptr;
+ID3D11VertexShader*        g_vs      = nullptr;
+ID3D11PixelShader*         g_ps      = nullptr;
+ID3D11InputLayout*         g_layout  = nullptr;
 
 // Quad(屏幕)
-ID3D11Buffer*              gQVB     = nullptr;
-ID3D11VertexShader*        gQVS     = nullptr;
-ID3D11PixelShader*         gQPS     = nullptr;
-ID3D11InputLayout*         gQL      = nullptr;
-ID3D11SamplerState*        gSamp    = nullptr;  // GPU“怎么从纹理里取颜色”
+ID3D11Buffer*              g_qvb     = nullptr;
+ID3D11VertexShader*        g_qvs     = nullptr;
+ID3D11PixelShader*         g_qps     = nullptr;
+ID3D11InputLayout*         g_ql      = nullptr;
+ID3D11SamplerState*        g_samp    = nullptr;  // GPU“怎么从纹理里取颜色”
 
-HWND gWnd;
+HWND g_wnd; 
+int  g_wight = 800;
+int  g_height = 600;
 
-int W = 800, H = 600;
-
+struct TVertex     { float x, y, z, r, g, b, a; };
+struct QVertex     { float x, y, z, u, v; };
+struct VSConstants { float vp[16]; };
+  
 // ================= Window =================
 LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l)
 {
@@ -47,19 +49,17 @@ void InitWindow()
     wc.lpszClassName = L"D3D";
     RegisterClass(&wc);
 
-    gWnd = CreateWindow(wc.lpszClassName, L"D3D11 Offscreen", WS_OVERLAPPEDWINDOW, 100, 100, W, H, 0, 0, GetModuleHandle(0), 0);
+    g_wnd = CreateWindow(wc.lpszClassName, L"D3D11 Offscreen", WS_OVERLAPPEDWINDOW, 100, 100, g_wight, g_height, 0, 0, GetModuleHandle(0), 0);
 
-    ShowWindow(gWnd, SW_SHOW);
+    ShowWindow(g_wnd, SW_SHOW);
 }
 
 // ================= Compile =================
 ID3DBlob* Compile(const char* src, const char* entry, const char* target)
 {
     ID3DBlob* blob = nullptr;
-    ID3DBlob* err = nullptr;
-
+    ID3DBlob* err  = nullptr;
     HRESULT hr = D3DCompile(src, strlen(src), 0, 0, 0, entry, target, D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &blob, &err);
-
     if (FAILED(hr))
     {
         if (err)
@@ -69,7 +69,6 @@ ID3DBlob* Compile(const char* src, const char* entry, const char* target)
         }
         return nullptr;
     }
-
     return blob;
 }
 
@@ -77,14 +76,14 @@ ID3DBlob* Compile(const char* src, const char* entry, const char* target)
 void InitD3D()
 {
     DXGI_SWAP_CHAIN_DESC sd = {};
-    sd.BufferCount = 1;
-    sd.BufferDesc.Width = W;
-    sd.BufferDesc.Height = H;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow = gWnd;
-    sd.SampleDesc.Count = 1;
-    sd.Windowed = TRUE;
+    sd.BufferCount          = 1;
+    sd.BufferDesc.Width     = g_wight;
+    sd.BufferDesc.Height    = g_height;
+    sd.BufferDesc.Format    = DXGI_FORMAT_R8G8B8A8_UNORM;
+    sd.BufferUsage          = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    sd.OutputWindow         = g_wnd;
+    sd.SampleDesc.Count     = 1;
+    sd.Windowed             = TRUE;
 
     D3D11CreateDeviceAndSwapChain(
         nullptr,
@@ -94,90 +93,111 @@ void InitD3D()
         nullptr, 0,
         D3D11_SDK_VERSION,
         &sd,
-        &gSwap,
-        &gDev,
+        &g_swap,
+        &g_dev,
         nullptr,
-        &gCtx);
+        &g_ctx);
 
     // backbuffer
     ID3D11Texture2D* bb = nullptr;
-    gSwap->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&bb);
-    gDev->CreateRenderTargetView(bb, 0, &gBackRTV);
+    g_swap->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&bb);
+    g_dev->CreateRenderTargetView(bb, 0, &g_backRTV);
     bb->Release();
-
-    D3D11_VIEWPORT vp = { 0,0,(float)W,(float)H,0,1 };
-    gCtx->RSSetViewports(1, &vp);
 
     // rasterizer
     D3D11_RASTERIZER_DESC rs = {};
-    rs.FillMode = D3D11_FILL_SOLID;
-    rs.CullMode = D3D11_CULL_NONE;
+    rs.FillMode              = D3D11_FILL_SOLID;
+    rs.CullMode              = D3D11_CULL_NONE;
 
     ID3D11RasterizerState* r;
-    gDev->CreateRasterizerState(&rs, &r);
-    gCtx->RSSetState(r);
+    g_dev->CreateRasterizerState(&rs, &r);
+    g_ctx->RSSetState(r);
 
     // ================= Offscreen =================
     D3D11_TEXTURE2D_DESC td = {};
-    td.Width = W;
-    td.Height = H;
-    td.MipLevels = 1;
-    td.ArraySize = 1;
-    td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    td.SampleDesc.Count = 1;
-    td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-
+    td.Width                = g_wight;
+    td.Height               = g_height;
+    td.MipLevels            = 1;
+    td.ArraySize            = 1;
+    td.Format               = DXGI_FORMAT_R8G8B8A8_UNORM;
+    td.SampleDesc.Count     = 1;
+    td.BindFlags            = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE; 
    
-    gDev->CreateTexture2D(&td, 0, &gOffTex);
-    gDev->CreateRenderTargetView(gOffTex, 0, &gOffRTV);
-    gDev->CreateShaderResourceView(gOffTex, 0, &gOffSRV);
+    g_dev->CreateTexture2D         (&td,      0, &g_offTex);
+    g_dev->CreateRenderTargetView  (g_offTex, 0, &g_offRtv);
+    g_dev->CreateShaderResourceView(g_offTex, 0, &g_offSRv);
 
-    // ================= Triangle =================
-    struct V { float x, y, z; };
-
-    V tri[] =
+    // ================= Triangle =================  
+    TVertex triangle[] =
     {
-        {0,0.5f,0},
-        {0.5f,-0.5f,0},
-        {-0.5f,-0.5f,0}
+        { 0.0f,  0.5f, 0.0f, 1, 0, 0, 1},  // 顶部 红
+        { 0.5f, -0.5f, 0.0f, 0, 1, 0, 1},  // 右下 绿
+        {-0.5f, -0.5f, 0.0f, 0, 0, 1, 1},  // 左下 蓝
     };
 
     D3D11_BUFFER_DESC bd = {};
-    bd.ByteWidth = sizeof(tri);
-    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    bd.ByteWidth         = sizeof(triangle);
+    bd.BindFlags         = D3D11_BIND_VERTEX_BUFFER; 
 
-    D3D11_SUBRESOURCE_DATA sdv = { tri };
-    gDev->CreateBuffer(&bd, &sdv, &gVB);
+    D3D11_SUBRESOURCE_DATA sdv = { triangle };
+    g_dev->CreateBuffer(&bd, &sdv, &g_vb);
 
-    const char* vs =
-        "struct I{float3 p:POSITION;};"
-        "struct O{float4 p:SV_POSITION;};"
-        "O main(I i){O o;o.p=float4(i.p,1);return o;}";
+    D3D11_BUFFER_DESC cbd = {};
+    cbd.ByteWidth         = sizeof(VSConstants);
+    cbd.Usage             = D3D11_USAGE_DEFAULT;
+    cbd.BindFlags         = D3D11_BIND_CONSTANT_BUFFER;
+    g_dev->CreateBuffer(&cbd, nullptr, &g_vsConst); 
+     
+    const char* tsrc = R"( 
+        cbuffer VSConstants : register(b0)
+        {
+            float4x4 vp;
+        }; 
 
-    const char* ps =
-        "float4 main():SV_Target{return float4(1,0.6,0.1,1);}";
+        struct VSInput
+        {
+            float3 pos : POSITION;
+            float4 color : COLOR;
+        };
+        
+        struct PSInput
+        {
+            float4 pos : SV_POSITION;
+            float4 color : COLOR;
+        };
+        
+        PSInput VSMain(VSInput input)
+        {
+            PSInput o;
+            o.pos = mul(float4(input.pos, 1.0f), vp);
+            o.color = input.color;
+            return o;
+        }
+        
+        float4 PSMain(PSInput input) : SV_TARGET
+        {
+            return input.color;
+        }
+     )"; 
 
-    ID3DBlob* v = Compile(vs, "main", "vs_5_0");
-    ID3DBlob* p = Compile(ps, "main", "ps_5_0");
+    ID3DBlob* vBuffer = Compile(tsrc, "VSMain", "vs_5_0");
+    ID3DBlob* pBuffer = Compile(tsrc, "PSMain", "ps_5_0"); 
 
-    gDev->CreateVertexShader(v->GetBufferPointer(), v->GetBufferSize(), 0, &gVS);
-    gDev->CreatePixelShader(p->GetBufferPointer(), p->GetBufferSize(), 0, &gPS);
+    g_dev->CreateVertexShader(vBuffer->GetBufferPointer(), vBuffer->GetBufferSize(), 0, &g_vs);
+    g_dev->CreatePixelShader (pBuffer->GetBufferPointer(), pBuffer->GetBufferSize(), 0, &g_ps);
 
-    D3D11_INPUT_ELEMENT_DESC il[] =
-    {
-        {"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,
-        D3D11_INPUT_PER_VERTEX_DATA,0}
+    D3D11_INPUT_ELEMENT_DESC inputLayoutDesc[] =
+    { 
+         {"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,   0, 0,D3D11_INPUT_PER_VERTEX_DATA,0 },
+         {"COLOR",   0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0},
     };
 
-    gDev->CreateInputLayout(il, 1,
-        v->GetBufferPointer(), v->GetBufferSize(), &gLayout);
+    g_dev->CreateInputLayout(inputLayoutDesc, 2, vBuffer->GetBufferPointer(), vBuffer->GetBufferSize(), &g_layout);
 
-    v->Release(); p->Release();
-
-    // ================= Quad =================
-    struct Q { float x, y, z, u, v; };
-
-    Q quad[] =
+    vBuffer->Release(); pBuffer->Release();
+      
+    // ================= Quad =================  
+    QVertex quad[] =
     {
         {-1,-1,0,0,1},
         {-1, 1,0,0,0},
@@ -187,97 +207,124 @@ void InitD3D()
 
     bd.ByteWidth = sizeof(quad);
     D3D11_SUBRESOURCE_DATA sdq = { quad };
-    gDev->CreateBuffer(&bd, &sdq, &gQVB);
+    g_dev->CreateBuffer(&bd, &sdq, &g_qvb);
 
-    const char* qvs =
-        "struct I{float3 p:POSITION;float2 uv:TEXCOORD;};"
-        "struct O{float4 p:SV_POSITION;float2 uv:TEXCOORD;};"
-        "O main(I i){O o;o.p=float4(i.p,1);o.uv=i.uv;return o;}"; 
+    const char* qsrc = R"(
+        struct VSInput
+        {
+            float3 pos : POSITION;
+            float2 uv  : TEXCOORD;
+        };
+    
+        struct PSInput
+        {
+            float4 pos : SV_POSITION;
+            float2 uv  : TEXCOORD;
+        };
+    
+        PSInput VSMain(VSInput input)
+        {
+            PSInput o;
+            o.pos = float4(input.pos, 1.0f);
+            o.uv  = input.uv;
+            return o;
+        }
+    
+        Texture2D    t0 : register(t0);
+        SamplerState s0 : register(s0);
+    
+        float4 PSMain(PSInput input) : SV_TARGET
+        {
+            return t0.Sample(s0, input.uv);
+        }
+    )";
 
-    // FIXED PS (关键修复点)
-    const char* qps =
-        "Texture2D    t0:register(t0);"
-        "SamplerState s0:register(s0);"
-        "struct PS_IN{float4 p:SV_POSITION;float2 uv:TEXCOORD;};"
-        "float4 main(PS_IN i):SV_Target"
-        "{return t0.Sample(s0,i.uv);}";
 
+    vBuffer = Compile(qsrc, "VSMain", "vs_5_0");
+    pBuffer = Compile(qsrc, "PSMain", "ps_5_0");
 
-    v = Compile(qvs, "main", "vs_5_0");
-    p = Compile(qps, "main", "ps_5_0");
-
-    gDev->CreateVertexShader(v->GetBufferPointer(), v->GetBufferSize(), 0, &gQVS);
-    gDev->CreatePixelShader(p->GetBufferPointer(), p->GetBufferSize(), 0, &gQPS);
+    g_dev->CreateVertexShader(vBuffer->GetBufferPointer(), vBuffer->GetBufferSize(), 0, &g_qvs);
+    g_dev->CreatePixelShader (pBuffer->GetBufferPointer(), pBuffer->GetBufferSize(), 0, &g_qps);
 
     D3D11_INPUT_ELEMENT_DESC ql[] =
     {
-        {"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,
-        D3D11_INPUT_PER_VERTEX_DATA,0},
-        {"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,
-        D3D11_INPUT_PER_VERTEX_DATA,0}
+        {"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,  0, D3D11_INPUT_PER_VERTEX_DATA,0},
+        {"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,   0, 12, D3D11_INPUT_PER_VERTEX_DATA,0}
     };
 
-    gDev->CreateInputLayout(ql, 2,
-        v->GetBufferPointer(), v->GetBufferSize(), &gQL);
+    g_dev->CreateInputLayout(ql, 2, vBuffer->GetBufferPointer(), vBuffer->GetBufferSize(), &g_ql);
 
-    v->Release(); p->Release();
+    vBuffer->Release(); pBuffer->Release();
 
     // sampler
     D3D11_SAMPLER_DESC s = {};
-    s.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    s.AddressU = s.AddressV = s.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+    s.Filter   = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    s.AddressU = s.AddressV = s.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP; 
 
-    gDev->CreateSamplerState(&s, &gSamp);
+    g_dev->CreateSamplerState(&s, &g_samp);
 }
 
 // ================= Render =================
 void Render()
 {
-    float c[4] = { 0.3,0,0,1 };
+    float c[4] = { 0 ,0,0,1 };
 
-    // ================= PASS 1 =================
-    gCtx->OMSetRenderTargets(1, &gOffRTV, nullptr);
-    gCtx->ClearRenderTargetView(gOffRTV, c);
 
-    UINT stride = 12, offset = 0;
+    // ================= PASS 1 =================   
 
-    gCtx->IASetVertexBuffers(0, 1, &gVB, &stride, &offset);
-    gCtx->IASetInputLayout  (gLayout);
-    gCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    D3D11_VIEWPORT vp = { 0,0,(float)g_wight,(float)g_height,0,1 };
+    g_ctx->RSSetViewports(1, &vp);
 
-    gCtx->VSSetShader(gVS, nullptr, 0);
-    gCtx->PSSetShader(gPS, nullptr, 0);
+    g_ctx->OMSetRenderTargets   (1, &g_offRtv, nullptr);
+    g_ctx->ClearRenderTargetView(g_offRtv, c);
 
-    gCtx->Draw(3, 0);
+    UINT stride = sizeof(TVertex); 
+    UINT offset = 0;
+
+    g_ctx->IASetVertexBuffers(0, 1, &g_vb, &stride, &offset);
+    g_ctx->IASetInputLayout  (g_layout);
+    g_ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+      
+    // 单位矩阵
+    VSConstants data = { 1,0,0,0,
+                         0,1,0,0,
+                         0,0,1,0,
+                         0,0,0,1 };
+
+    g_ctx->UpdateSubresource(g_vsConst, 0, nullptr, &data, 0, 0);
+    g_ctx->VSSetConstantBuffers(0, 1, &g_vsConst);
+    g_ctx->VSSetShader(g_vs, nullptr, 0);
+    g_ctx->PSSetShader(g_ps, nullptr, 0);
+    g_ctx->Draw(3, 0);
 
     // IMPORTANT CLEANUP
     ID3D11RenderTargetView* nullRT[1] = { nullptr };
-    gCtx->OMSetRenderTargets(1, nullRT, nullptr);
+    g_ctx->OMSetRenderTargets(1, nullRT, nullptr);
 
     ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
-    gCtx->PSSetShaderResources(0, 1, nullSRV);
+    g_ctx->PSSetShaderResources(0, 1, nullSRV);
 
-    gCtx->Flush();
+    g_ctx->Flush();
 
     // ================= PASS 2 =================
-    gCtx->OMSetRenderTargets(1, &gBackRTV, nullptr);
-    gCtx->ClearRenderTargetView(gBackRTV, c);
+    g_ctx->OMSetRenderTargets(1, &g_backRTV, nullptr);
+    g_ctx->ClearRenderTargetView(g_backRTV, c);
 
-    stride = 20;
+    stride = sizeof(QVertex);
 
-    gCtx->IASetVertexBuffers(0, 1, &gQVB, &stride, &offset);
-    gCtx->IASetInputLayout(gQL);
-    gCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    g_ctx->IASetVertexBuffers(0, 1, &g_qvb, &stride, &offset);
+    g_ctx->IASetInputLayout(g_ql);
+    g_ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-    gCtx->VSSetShader(gQVS, nullptr, 0);
-    gCtx->PSSetShader(gQPS, nullptr, 0);
+    g_ctx->VSSetShader(g_qvs, nullptr, 0);
+    g_ctx->PSSetShader(g_qps, nullptr, 0);
 
-    gCtx->PSSetShaderResources(0, 1, &gOffSRV);
-    gCtx->PSSetSamplers(0, 1, &gSamp); 
+    g_ctx->PSSetShaderResources(0, 1, &g_offSRv);
+    g_ctx->PSSetSamplers(0, 1, &g_samp); 
 
-    gCtx->Draw(4, 0);
+    g_ctx->Draw(4, 0);
 
-    gSwap->Present(1, 0);
+    g_swap->Present(1, 0);
 }
 
 // ================= main =================
@@ -297,3 +344,4 @@ int main()
         else Render();
     }
 }
+
