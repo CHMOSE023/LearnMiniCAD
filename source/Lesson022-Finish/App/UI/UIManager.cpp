@@ -103,8 +103,12 @@ namespace MiniCAD
 
     void  UIManager::DrawDocumentTabs(DocumentManager& dm)
     {
+        ImGui::Begin("Document");
+
         if (!ImGui::BeginTabBar("Documents##Main"))
+        { ImGui::End();
             return;
+        }
 
         auto& docs = dm.GetAll();
         Document* active = dm.GetActive();
@@ -140,6 +144,8 @@ namespace MiniCAD
         }
 
         ImGui::EndTabBar();
+
+        ImGui::End();
     }
 
     // =========================================================
