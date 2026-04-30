@@ -7,6 +7,32 @@
 #include <d3dcompiler.h> 
 #include <algorithm>
 
+#include <DirectXMath.h>
+using namespace DirectX;
+ 
+struct TVertex { float x, y, z, r, g, b, a; }; 
+
+struct ViewportState
+{
+    // --- 图像信息 ---
+    ImVec2 viewport_size;  // 显示尺寸（窗口中）
+    ImVec2 viewport_min;   // 屏幕坐标：左上角
+    ImVec2 viewport_max;   // 屏幕坐标：右下角
+
+    // --- 输入 ---
+    ImVec2 mouse_pos;   // 鼠标屏幕坐标
+    ImVec2 mouse_local; // 相对图像坐标 
+
+    float  wheel = 0;   // 滚轮
+    ImVec2 delta;       // 偏移量
+};
+
+struct Camera2D
+{
+    float    zoom   = 1.0f;
+    XMFLOAT2 offset = { 0.0f, 0.0f }; // 平移
+};
+
 // Data
 static ID3D11Device*            g_pd3dDevice = nullptr;
 static ID3D11DeviceContext*     g_pd3dDeviceContext = nullptr;
@@ -19,6 +45,11 @@ static ID3D11RenderTargetView*  g_mainRenderTargetView = nullptr;
 ID3D11Texture2D*                g_offTex  = nullptr;  // GPU 上真实存像素的“图片内存”
 ID3D11RenderTargetView*         g_offRtv  = nullptr;  // 让 GPU “可以往这张纹理画东西”
 ID3D11ShaderResourceView*       g_offSrv  = nullptr;  // 让 shader 可以读取这张纹理
+/* 
+   // 两者指向同一块 g_offTex 内存，但权限不同
+   g_offRtv  // RenderTargetView   = "可写入" 视图  → 只有 RenderOffscreen 用它写
+   g_offSrv  // ShaderResourceView = "只读"  视图  → ImGui::Image 用它读
+*/
                                 
 // Triangle(三角形)        
 ID3D11Buffer*                   g_vsConst = nullptr;  // 位置
@@ -27,37 +58,25 @@ ID3D11VertexShader*             g_vs      = nullptr;
 ID3D11PixelShader*              g_ps      = nullptr;
 ID3D11InputLayout*              g_layout  = nullptr;
 
+
+XMMATRIX                        g_viewProj = XMMatrixIdentity();// 投影 
+Camera2D                        g_cam      = {};                // 相机
 int  g_width  = 1800;
 int  g_height = 1600;
+
 
 void InitOffscreen();
 void RenderOffscreen();
 void RenderViewport();
+void UpdateViewProj(ViewportState viewportState); // 更新投影矩阵
+void ResizeOffscreen(int w, int h);               // 动态重建纹理
+
 bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
 void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-
-struct TVertex     { float x, y, z, r, g, b, a; }; 
-struct VSConstants { float vp[16]; };
-
-struct ViewportState
-{
-    // --- 图像信息 ---
-    ImVec2 viewport_size;  // 显示尺寸（窗口中）
-    ImVec2 viewport_min;   // 屏幕坐标：左上角
-    ImVec2 viewport_max;   // 屏幕坐标：右下角
-
-    // --- 输入 ---
-    ImVec2 mouse_pos;   // 鼠标屏幕坐标
-    ImVec2 mouse_local; // 相对图像坐标 
-        
-    float  wheel = 0;   // 滚轮
-    ImVec2 delta;       // 偏移量
-};
-
+ 
 int main(int, char**)
 {
     ImGui_ImplWin32_EnableDpiAwareness();
@@ -139,17 +158,16 @@ int main(int, char**)
             g_pSwapChain->ResizeBuffers(0, g_ResizeWidth, g_ResizeHeight, DXGI_FORMAT_UNKNOWN, 0);
             g_ResizeWidth = g_ResizeHeight = 0;
             CreateRenderTarget();
-        }
-         
+        } 
 
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
+         
+        RenderViewport();    // 呈现视口
 
-        RenderOffscreen();
+        RenderOffscreen();   // 渲染图形
 
-        RenderViewport();
-          
         ImGui::Render();
         const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
         g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
@@ -250,6 +268,7 @@ void InitOffscreen()
     td.BindFlags        = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE; 
 
     g_pd3dDevice->CreateTexture2D         (&td,      0, &g_offTex);
+    if (!g_offTex) return;
     g_pd3dDevice->CreateRenderTargetView  (g_offTex, 0, &g_offRtv);
     g_pd3dDevice->CreateShaderResourceView(g_offTex, 0, &g_offSrv);
 
@@ -261,29 +280,21 @@ void InitOffscreen()
         { 0.5f, -0.5f, 0.0f, 0, 1, 0, 1},  // 右下 绿
         {-0.5f, -0.5f, 0.0f, 0, 0, 1, 1},  // 左下 蓝
     };
-
-    // 单位矩阵
-    VSConstants mat =  { 1,0,0,0,
-                         0,1,0,0,
-                         0,0,1,0,
-                         0,0,0,1 }; 
-
+      
     D3D11_BUFFER_DESC bd = {};
     bd.ByteWidth         = sizeof(triangle);
     bd.BindFlags         = D3D11_BIND_VERTEX_BUFFER;  
 
     D3D11_SUBRESOURCE_DATA sdv = { triangle };  
     g_pd3dDevice->CreateBuffer(&bd, &sdv, &g_vb);
-
-
+     
     D3D11_BUFFER_DESC cbd = {};
-    cbd.ByteWidth = sizeof(VSConstants);
+    cbd.ByteWidth = sizeof(XMMATRIX);
     cbd.Usage     = D3D11_USAGE_DEFAULT;
     cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER; 
 
     g_pd3dDevice->CreateBuffer(&cbd, nullptr, &g_vsConst);  
-
-    g_pd3dDeviceContext->UpdateSubresource(g_vsConst, 0, nullptr, &mat, 0, 0);
+    if (!g_vsConst) return;
 
     const char* tsrc = R"( 
         cbuffer VSConstants : register(b0)
@@ -340,49 +351,37 @@ void InitOffscreen()
 /// </summary>
 void RenderOffscreen()
 {
-    float c[4] = { 0.3f, 0.0f, 0.0f, 1.0f };
+    if (!g_offTex || !g_offRtv || !g_offSrv) return;
 
-  
-    g_pd3dDeviceContext->VSSetConstantBuffers(0, 1, &g_vsConst);
-
-
-    // ================= 绑定离屏 RT =================
-    g_pd3dDeviceContext->OMSetRenderTargets   (1, &g_offRtv, nullptr);
-    g_pd3dDeviceContext->ClearRenderTargetView(g_offRtv, c);
-
-    // ================= 关键：设置 Viewport =================
     D3D11_TEXTURE2D_DESC desc;
     g_offTex->GetDesc(&desc);
 
-    D3D11_VIEWPORT vp;
-    vp.TopLeftX  = 0.0f;
-    vp.TopLeftY  = 0.0f;
-    vp.Width     = g_width;
-    vp.Height    = g_height;
-    vp.MinDepth  = 0.0f;
-    vp.MaxDepth  = 1.0f;
+    float c[4] = { 0.3f, 0.0f, 0.0f, 1.0f };
+    g_pd3dDeviceContext->VSSetConstantBuffers (0, 1, &g_vsConst);
+    g_pd3dDeviceContext->OMSetRenderTargets   (1, &g_offRtv, nullptr);
+    g_pd3dDeviceContext->ClearRenderTargetView(g_offRtv, c);
 
+    //  用实际纹理尺寸，不再用 g_width/g_height
+    D3D11_VIEWPORT vp = {};
+    vp.Width    = (float)desc.Width;
+    vp.Height   = (float)desc.Height;
+    vp.MaxDepth = 1.0f;
     g_pd3dDeviceContext->RSSetViewports(1, &vp);
 
-    // （可选但推荐）Scissor
     D3D11_RECT rect = { 0, 0, (LONG)desc.Width, (LONG)desc.Height };
     g_pd3dDeviceContext->RSSetScissorRects(1, &rect);
 
-    // ================= 输入装配 =================
-    UINT stride = sizeof(TVertex);
-    UINT offset = 0;
-
+    UINT stride = sizeof(TVertex), offset = 0;
     g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &g_vb, &stride, &offset);
     g_pd3dDeviceContext->IASetInputLayout(g_layout);
     g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // ================= shader =================
+    XMMATRIX viewProj = XMMatrixTranspose(g_viewProj);
+    g_pd3dDeviceContext->UpdateSubresource(g_vsConst, 0, nullptr, &viewProj, 0, 0);
+
     g_pd3dDeviceContext->VSSetShader(g_vs, nullptr, 0);
     g_pd3dDeviceContext->PSSetShader(g_ps, nullptr, 0);
-
-    // ================= draw =================
     g_pd3dDeviceContext->Draw(3, 0);
-
     g_pd3dDeviceContext->OMSetRenderTargets(0, nullptr, nullptr);
 
 }
@@ -407,6 +406,9 @@ void RenderViewport()
 
     ImVec2 size = ImGui::GetContentRegionAvail();
     state.viewport_size = size;
+
+    // 每帧同步离屏纹理尺寸
+    ResizeOffscreen((int)size.x, (int)size.y);
 
     // ===== 渲染图像 =====
     ImGui::Image(g_offSrv, size);
@@ -471,8 +473,104 @@ void RenderViewport()
     ImGui::Text("Mouse local    : %.1f, %.1f", state.mouse_local.x,   state.mouse_local.y);
     ImGui::Text("Delta          : %.1f, %.1f", state.delta.x,         state.delta.y);
     ImGui::Text("Wheel          : %.1f",       state.wheel);
+    ImGui::Text("Camera zoom    : %.1f",       g_cam.zoom);
+    ImGui::Text("Camera offset  : %.1f, %.1f", g_cam.offset.x,g_cam.offset.y);
 
     ImGui::End();
+
+    UpdateViewProj(state);
+}
+
+void UpdateViewProj(ViewportState state)
+{ 
+    float w = state.viewport_size.x;
+    float h = state.viewport_size.y;
+    float aspect = (h > 0) ? (w / h) : 1.0f; 
+
+    // ===== 1. 缩放 =====
+    if (state.wheel != 0.0f)
+    {
+        float prevZoom = g_cam.zoom;
+        g_cam.zoom *= powf(1.1f, state.wheel);
+        g_cam.zoom = max(0.01f, g_cam.zoom);
+
+        if (state.mouse_local.x >= 0)
+        {
+            // 鼠标归一化到 [0,1]（与单位无关）
+            float nx = state.mouse_local.x / w;
+            float ny = state.mouse_local.y / h;
+
+            // ✅ 统一用 NDC 单位计算 halfW/halfH
+            float halfW_prev = aspect / prevZoom;
+            float halfH_prev = 1.0f / prevZoom;
+            float worldX_before = g_cam.offset.x - halfW_prev + nx * (halfW_prev * 2.0f);
+            float worldY_before = g_cam.offset.y + halfH_prev - ny * (halfH_prev * 2.0f);
+
+            float halfW_now = aspect / g_cam.zoom;
+            float halfH_now = 1.0f / g_cam.zoom;
+            float worldX_after = g_cam.offset.x - halfW_now + nx * (halfW_now * 2.0f);
+            float worldY_after = g_cam.offset.y + halfH_now - ny * (halfH_now * 2.0f);
+
+            g_cam.offset.x += (worldX_before - worldX_after);
+            g_cam.offset.y += (worldY_before - worldY_after);
+        }
+    }
+
+    // ===== 2. 平移 =====
+    if (state.delta.x != 0 || state.delta.y != 0)
+    {
+        // 每像素对应的 NDC 世界单位
+        float worldPerPixelX = (aspect * 2.0f / g_cam.zoom) / w;
+        float worldPerPixelY = (2.0f / g_cam.zoom) / h;
+
+        g_cam.offset.x -= state.delta.x * worldPerPixelX;
+        g_cam.offset.y += state.delta.y * worldPerPixelY;
+    }
+
+    // ===== 3. 投影矩阵（NDC单位，三角形 ±0.5 正好可见）=====
+    float halfW = aspect / g_cam.zoom;
+    float halfH = 1.0f / g_cam.zoom;
+
+    g_viewProj = XMMatrixOrthographicOffCenterLH(
+        g_cam.offset.x - halfW,  // left
+        g_cam.offset.x + halfW,  // right
+        g_cam.offset.y - halfH,  // bottom
+        g_cam.offset.y + halfH,  // top
+        0.0f, 1.0f
+    );
+}
+
+// 动态重建纹理
+void ResizeOffscreen(int w, int h)
+{    
+    if (w <= 0 || h <= 0) return;
+    // 尺寸没变就跳过
+    if (g_offTex)
+    {
+        D3D11_TEXTURE2D_DESC desc;
+        g_offTex->GetDesc(&desc);
+        if ((int)desc.Width == w && (int)desc.Height == h) return;
+    }
+
+    // 释放旧资源
+    if (g_offSrv) { g_offSrv->Release(); g_offSrv = nullptr; }
+    if (g_offRtv) { g_offRtv->Release(); g_offRtv = nullptr; }
+    if (g_offTex) { g_offTex->Release(); g_offTex = nullptr; }
+
+    // 重建
+    D3D11_TEXTURE2D_DESC td = {};
+    td.Width                = w;
+    td.Height               = h;
+    td.MipLevels            = 1;
+    td.ArraySize            = 1;
+    td.Format               = DXGI_FORMAT_R8G8B8A8_UNORM;
+    td.SampleDesc.Count     = 1;
+    td.BindFlags            = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+
+    g_pd3dDevice->CreateTexture2D         (&td, 0, &g_offTex);
+    if (!g_offTex) return;
+    g_pd3dDevice->CreateRenderTargetView  (g_offTex, 0, &g_offRtv);
+    g_pd3dDevice->CreateShaderResourceView(g_offTex, 0, &g_offSrv);
 }
 
 void CleanupDeviceD3D()
