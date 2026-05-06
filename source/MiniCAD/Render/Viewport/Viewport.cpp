@@ -32,11 +32,31 @@ namespace MiniCAD
           
         m_renderer.BeginFrame(m_renderTarget,m_d3dViewport);
         {  
-
-            { // 轴网 
+            if (m_showGrid)
+            {
+                // 轴网 
                 auto grid = m_grid.BuildGrid(m_camera, viewState.ShowGrid, m_width, m_height);
                 if (!grid.empty())
                     m_renderer.Submit(grid, screenVP, PrimitiveType::Line, true, true);
+
+            }
+
+            if (m_showAxis)
+            {
+                // 坐标轴
+                auto axis = m_axis.BuildAxis(m_camera, viewState.ShowAxis, m_width, m_height);
+                if (!axis.empty())
+                    m_renderer.Submit(axis, screenVP, PrimitiveType::Line, true, true);
+
+            }
+
+            if (m_showGizmo)
+            {
+                // 原点小方块
+                auto Gizmo = m_gizmo.BuildGizmo(m_camera, viewState.ShowGizmo, m_width, m_height);
+                if (!Gizmo.empty())
+                    m_renderer.Submit(Gizmo, screenVP, PrimitiveType::Line, true, true);
+
             }
 
             { // 鼠标样式
