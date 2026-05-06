@@ -572,25 +572,6 @@ namespace MiniCAD
         {
             ImGui::TextDisabled("无");
         }
-        // ── 当前文档 ─────────────────────────────────────────────
-        Document* active = dm.GetActive();
-        ImGui::TextDisabled("文档:");
-        ImGui::SameLine();
-        if (active)
-        {
-            ImGui::TextUnformatted(active->GetName().c_str());
-            if (active->IsDirty())
-            {
-                ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.8f, 0.2f, 1.f));
-                ImGui::TextUnformatted("● 未保存");
-                ImGui::PopStyleColor();
-            }
-        }
-        else
-        {
-            ImGui::TextDisabled("无");
-        }
 
         // ── 右侧：文档数量 ───────────────────────────────────────
         {
