@@ -430,6 +430,10 @@ namespace MiniCAD
             { ImGuiKey_Z,      'Z'       },
             { ImGuiKey_Y,      'Y'       },
             { ImGuiKey_L,      'L'       },
+			{ ImGuiKey_Delete, VK_DELETE },
+			{ ImGuiKey_F3,	   VK_F3     },
+			{ ImGuiKey_F8,     VK_F8     },
+		
         };
 	    
         for (const auto& k : k_keys)
