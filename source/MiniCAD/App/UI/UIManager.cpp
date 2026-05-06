@@ -215,7 +215,9 @@ namespace MiniCAD
         {
             const float btnW = 32.f;
             const float gap = 8.f;
-            const float totalW = btnW * 3.f + gap * 3.f + ImGui::GetStyle().WindowPadding.x;
+            const int btnCount = 4;
+            const float totalW = btnW * btnCount + gap * (btnCount - 1)
+                + ImGui::GetStyle().WindowPadding.x;
             ImGui::SetCursorPosX(ImGui::GetWindowWidth() - totalW);
 
             float   buttonsLocalX = ImGui::GetWindowWidth() - totalW;
