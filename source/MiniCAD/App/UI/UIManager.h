@@ -3,6 +3,8 @@
 #include "ImGuiLayer.h" 
 #include <memory> 
 #include <imgui.h> 
+#include <string>
+#include <unordered_map>
 namespace MiniCAD
 { 
     class DocumentManager;
@@ -18,7 +20,7 @@ namespace MiniCAD
         Zoom,
         COUNT
     };
-
+     
     // =========================================================
     // DocImageState
     // 每帧由 DrawDocumentTabs 写入，供 EventProc 读取
@@ -42,7 +44,8 @@ namespace MiniCAD
 
     class UIManager
     {
-    public:
+    public:  
+     
         bool Init(HWND hwnd, ID3D11Device* device, ID3D11DeviceContext* context);
         void Shutdown();
 
@@ -60,15 +63,21 @@ namespace MiniCAD
         void DrawToolbar     (DocumentManager& dm);
         void DrawDocumentTabs(DocumentManager& dm);
         void DrawStatusBar   (DocumentManager& dm);
+        void InitToolIcons   ();
 
-
+        ImTextureID LoadTextureFromFile(const char* path);
+    
     private:
         std::unique_ptr<ImGuiLayer> m_imgui;   
         HWND                        m_hwnd = nullptr;
+        ID3D11Device*               m_device = nullptr;
         float                       m_captionButtonsScreenX=0.f;
+        DocImageState               m_docImageState{};
+        ImVec2                      m_lastLocal = ImVec2(0, 0);
+        Tool                        m_activeTool = Tool::Select;
 
-        DocImageState m_docImageState{};
-        ImVec2        m_lastLocal = ImVec2(0, 0);
-        Tool m_activeTool = Tool::Select;
+        ImTextureID                 m_icons[(int)Icon::COUNT] = {};
+
+        std::unordered_map<std::string, ImTextureID> m_toolIcons;
     };
 }

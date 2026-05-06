@@ -361,7 +361,7 @@ ImTextureID LoadTextureFromFile(ID3D11Device* device, const char* path)
     // 创建 SRV（Shader Resource View），这才是 ImGui 需要的
     ID3D11ShaderResourceView* srv = nullptr;
     device->CreateShaderResourceView(tex, nullptr, &srv);
-    tex->Release(); // SRV 已持有引用，Texture 可以释放
+    tex->Release();   // SRV 已持有引用，Texture 可以释放
 
     return (ImTextureID)srv;
 }

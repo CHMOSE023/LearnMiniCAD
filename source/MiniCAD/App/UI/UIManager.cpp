@@ -1,10 +1,15 @@
 #include "UIManager.h"
-#include <imgui.h>
+#include "imgui.h"
 #include "imgui_internal.h"
-#include <memory>
 #include "App/Document/Document.h"
 #include "App/Document/DocumentManager.h"
-#include "pch.h"
+#include <memory>
+#include <vector>
+#include <filesystem>
+#include <utility>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h> 
+#include "pch.h" 
 
 namespace MiniCAD
 { 
@@ -91,9 +96,11 @@ namespace MiniCAD
      
     bool UIManager::Init(HWND hwnd, ID3D11Device* device, ID3D11DeviceContext* context)
     {
-        m_hwnd = hwnd; 
+        m_hwnd   = hwnd; 
+		m_device = device;
+        InitToolIcons();
+        m_imgui  = std::make_unique<ImGuiLayer>();
 
-        m_imgui = std::make_unique<ImGuiLayer>();
         if (!m_imgui->Init(hwnd, device, context))
             return false;  
 
@@ -102,6 +109,7 @@ namespace MiniCAD
 
         io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/msyh.ttc", 16.f, nullptr, io.Fonts->GetGlyphRangesChineseFull());  
         ImGui::StyleColorsDark();
+        
         return true;
     }     
     void UIManager::Shutdown()  { m_imgui->Shutdown(); }
@@ -516,7 +524,7 @@ namespace MiniCAD
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
         ImGui::SameLine();
         // ── 正交与捕捉 ────────────────────────────────────────────
-       // 捕捉状态
+        // 捕捉状态
         auto& style = ImGui::GetStyle();
         // 使用 ImGui 语义颜色（自动适配明暗主题）
         const ImVec4 colorActive = style.Colors[ImGuiCol_Text];
@@ -593,6 +601,78 @@ namespace MiniCAD
         ImGui::EndChild();
         //ImGui::PopStyleColor();
         //ImGui::PopStyleVar(2);
+    }
+
+    void UIManager::InitToolIcons()
+    { 
+        const char* iconPaths[] = {
+                "icons/Arc.png",
+                "icons/Circle.png",
+                "icons/Copy.png",
+                "icons/Cursor.png",
+                "icons/Ellipse.png",
+                "icons/Line.png",
+                "icons/Mirror.png",
+                "icons/Move.png",
+                "icons/Pline.png",
+                "icons/Rect.png",
+                "icons/Rotate.png",
+                "icons/Spline.png"
+        }; 
+
+        m_toolIcons.clear(); 
+
+        for (auto path : iconPaths)
+        {
+            std::filesystem::path p(path);
+            std::string key = p.stem().string();
+
+            auto srv = LoadTextureFromFile(path);
+            if (!srv)
+                continue;
+
+            m_toolIcons.emplace(key, std::move(srv));
+        }   
+    }
+
+    ImTextureID  UIManager::LoadTextureFromFile(const char* path)
+    {
+        // 用 stb_image 读取图片
+        int w, h, ch;
+        unsigned char* pixels = stbi_load(path, &w, &h, &ch, 4); // 强制 RGBA
+        if (!pixels) return NULL;
+
+        // 创建 D3D11 Texture2D
+        D3D11_TEXTURE2D_DESC desc = {};
+        desc.Width = w;
+        desc.Height = h;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+        D3D11_SUBRESOURCE_DATA initData = {};
+        initData.pSysMem = pixels;
+        initData.SysMemPitch = w * 4;
+
+        ID3D11Texture2D* tex = nullptr;
+        m_device->CreateTexture2D(&desc, &initData, &tex);
+        stbi_image_free(pixels);
+
+        if (!tex) return NULL;
+
+        // 创建 SRV（Shader Resource View），这才是 ImGui 需要的
+        ID3D11ShaderResourceView* srv = nullptr;
+        HRESULT hr = m_device->CreateShaderResourceView(tex, nullptr, &srv);
+        if (FAILED(hr) || !srv)
+        {
+            tex->Release();
+            return NULL;
+        }
+
+        return (ImTextureID)srv;
     }
 
 }  

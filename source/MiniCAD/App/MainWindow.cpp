@@ -42,7 +42,7 @@ namespace MiniCAD
 		, m_device(nullptr)
 		, m_swapChain(nullptr)
 		, m_renderer(nullptr) 
-		,m_docManager()
+		, m_docManager()
 	{}
 
 	MainWindow::~MainWindow()

@@ -19,7 +19,7 @@ add_library(imgui
     thirdParty/imgui/backends/imgui_impl_dx11.cpp
 )
 
-target_include_directories(imgui PUBLIC
+target_include_directories(imgui PUBLIC 
     thirdParty/imgui
     thirdParty/imgui/backends
 )
@@ -37,7 +37,8 @@ foreach(LESSON_NAME ${LESSON_NAMES})                                            
     if(LESSON_SOURCES)  
         add_executable(${LESSON_NAME} ${LESSON_SOURCES})                        # 3.3 以课程名创建可执行目标
    
-        target_include_directories(${LESSON_NAME} PRIVATE "${LESSON_DIR}/")     # 3.4 课程私有头文件目录
+        target_include_directories(${LESSON_NAME} PRIVATE "${LESSON_DIR}/"      # 3.4 课程私有头文件目录 
+                                       "${CMAKE_SOURCE_DIR}/thirdParty/stb")      
 
         target_link_libraries(${LESSON_NAME} PRIVATE                            # 3.5 链接所需库 
             d3d11 dxgi d3dcompiler  imgui
@@ -59,3 +60,13 @@ foreach(LESSON_NAME ${LESSON_NAMES})                                            
         endif()
     endif()
 endforeach()
+
+# 把 icons 复制到 MiniCAD icons
+file(GLOB_RECURSE ASSETS_ICONS "${CMAKE_SOURCE_DIR}/assets/icons/*")
+if(ASSETS_ICONS)
+    add_custom_command(TARGET MiniCAD POST_BUILD    
+        COMMAND ${CMAKE_COMMAND} -E make_directory                     $<TARGET_FILE_DIR:MiniCAD>/icons           
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${ASSETS_ICONS}  $<TARGET_FILE_DIR:MiniCAD>/icons
+        COMMENT "Copying assets icons for MiniCAD"
+    )
+endif()
