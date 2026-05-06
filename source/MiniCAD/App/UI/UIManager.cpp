@@ -373,14 +373,19 @@ namespace MiniCAD
             {
                 if (doc != active)
                     dm.SetActive(doc);
-
+                 
                 // 去掉内边距
                 ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
                 ImVec2 size = ImGui::GetContentRegionAvail();
+
+                docPtr->GetViewport().Resize(size.x, size.y);
+
                 auto   srv  = doc->GetViewport().GetRenderTarget().GetSRV();
+
                 ImGui::Image(srv, size);
+
 
                 ImGui::PopStyleVar(2);
                 if (doc == dm.GetActive())

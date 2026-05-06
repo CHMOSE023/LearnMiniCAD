@@ -2,6 +2,7 @@
 #include <DirectXMath.h>
 #include "Render/D3D11/Renderer.h"  
 #include "Camera.h"
+#include <cmath>
 using namespace DirectX;
 
 namespace MiniCAD
@@ -78,6 +79,13 @@ namespace MiniCAD
 
     void Viewport::Resize(float width, float height)
     {  
+        constexpr float EPS = 0.5f;  
+
+        if (fabs(m_width - width) < EPS && fabs(m_height - height) < EPS)
+        {
+            return;
+        }
+
         m_width  = width;
         m_height = height; 
         m_d3dViewport.Width  = width;
