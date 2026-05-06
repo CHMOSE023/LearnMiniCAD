@@ -215,7 +215,9 @@ namespace MiniCAD
         {
             const float btnW = 32.f;
             const float gap = 8.f;
-            const float totalW = btnW * 3.f + gap * 3.f + ImGui::GetStyle().WindowPadding.x;
+            const int btnCount = 4;
+            const float totalW = btnW * btnCount + gap * (btnCount - 1)
+                + ImGui::GetStyle().WindowPadding.x;
             ImGui::SetCursorPosX(ImGui::GetWindowWidth() - totalW);
 
             float   buttonsLocalX = ImGui::GetWindowWidth() - totalW;
@@ -553,25 +555,6 @@ namespace MiniCAD
         ImGui::SameLine();
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
         ImGui::SameLine();
-        // ── 当前文档 ─────────────────────────────────────────────
-        Document* active = dm.GetActive();
-        ImGui::TextDisabled("文档:");
-        ImGui::SameLine();
-        if (active)
-        {
-            ImGui::TextUnformatted(active->GetName().c_str());
-            if (active->IsDirty())
-            {
-                ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.8f, 0.2f, 1.f));
-                ImGui::TextUnformatted("● 未保存");
-                ImGui::PopStyleColor();
-            }
-        }
-        else
-        {
-            ImGui::TextDisabled("无");
-        }
         // ── 当前文档 ─────────────────────────────────────────────
         Document* active = dm.GetActive();
         ImGui::TextDisabled("文档:");
