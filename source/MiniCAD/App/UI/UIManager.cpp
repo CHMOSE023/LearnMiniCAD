@@ -154,7 +154,16 @@ namespace MiniCAD
         ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode); 
         ImGui::End();
     }
-     
+    inline void DrawDropdownIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 col)
+    {
+        float half = size * 0.5f;
+
+        ImVec2 p1 = ImVec2(center.x - half, center.y - half * 0.3f);
+        ImVec2 p2 = ImVec2(center.x + half, center.y - half * 0.3f);
+        ImVec2 p3 = ImVec2(center.x, center.y + half);
+
+        dl->AddTriangleFilled(p1, p2, p3, col);
+    }
     void UIManager::DrawMenubar(DocumentManager& dm)
     { 
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.f, 6.f)); // 菜单栏高度 
@@ -189,9 +198,11 @@ namespace MiniCAD
         }
         if (ImGui::BeginMenu("视图"))
         {
-            static bool showGrid = true, showAxis = true;
-            ImGui::MenuItem("显示网格", nullptr, &showGrid);
-            ImGui::MenuItem("显示坐标轴", nullptr, &showAxis);
+            auto& viewport = dm.GetActive()->GetViewport();
+            static bool showGrid = true, showAxis = true, showGizmo = true;
+            ImGui::MenuItem("显示网格", nullptr, &showGrid); { viewport.ShowGrid(showGrid); }
+            ImGui::MenuItem("显示坐标轴", nullptr, &showAxis); { viewport.ShowAxis(showAxis); }
+            ImGui::MenuItem("显示Gizmo", nullptr, &showGizmo); { viewport.ShowGizmo(showGizmo); }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("帮助"))
@@ -218,7 +229,34 @@ namespace MiniCAD
             ImDrawList* dl = ImGui::GetWindowDrawList();
             ImU32       iconCol = IM_COL32(255, 255, 255, 255);
             const float iconSize = 10.f;
-
+            // ── 按钮 ───────────────────────────────────────────
+            ImGui::Button("##menu", ImVec2(btnW, 0.f));
+            ImVec2 center = RectCenter(ImGui::GetItemRectMin(), ImGui::GetItemRectSize());
+            DrawDropdownIcon(dl, center, iconSize, iconCol);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("菜单");
+            if (ImGui::IsItemClicked())
+            {
+                ImGui::OpenPopup("MainMenuPopup");
+            }
+            if (ImGui::BeginPopup("MainMenuPopup"))
+            {
+                if (ImGui::MenuItem("主题"))
+                {
+                    // TODO
+                }
+                if (ImGui::MenuItem("设置"))
+                {
+                    // TODO
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("退出"))
+                {
+                    PostMessage(m_hwnd, WM_CLOSE, 0, 0);
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::SameLine(0.f, gap);
             // ── 最小化 ───────────────────────────────────────────
             ImGui::Button("##min", ImVec2(btnW, 0.f));
             DrawMinimizeIcon(dl, RectCenter(ImGui::GetItemRectMin(), ImGui::GetItemRectSize()), iconSize, iconCol);
@@ -470,7 +508,70 @@ namespace MiniCAD
         ImGui::SameLine();
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
         ImGui::SameLine();
+        // ── 正交与捕捉 ────────────────────────────────────────────
+       // 捕捉状态
+        auto& style = ImGui::GetStyle();
+        // 使用 ImGui 语义颜色（自动适配明暗主题）
+        const ImVec4 colorActive = style.Colors[ImGuiCol_Text];
+        const ImVec4 colorInactive = style.Colors[ImGuiCol_TextDisabled];
+        ImGui::BeginChild("status_snap", ImVec2(80, 0), false);
+        {
 
+            bool snapEnabled = dm.GetActive()->GetEditor().IsSnapEnabled();
+            ImVec2 btnPos = ImGui::GetCursorPos();
+            ImGui::TextColored(snapEnabled ? colorActive : colorInactive, "捕捉(F3): ");
+            ImGui::SameLine();
+            ImGui::TextColored(snapEnabled ? colorActive : colorInactive, snapEnabled ? "开 " : "关  ");
+            ImGui::SetCursorPos(btnPos);
+            ImGui::InvisibleButton("snap_toggle", ImVec2(80, ImGui::GetTextLineHeight()));
+            if (ImGui::IsItemClicked())
+            {
+                dm.GetActive()->GetEditor().ToggleSnap();
+            }
+        }
+        ImGui::EndChild();
+
+        ImGui::SameLine();
+
+        // 正交状态
+        ImGui::BeginChild("status_ortho", ImVec2(80, 0), false);
+        {
+            bool orthoEnabled = dm.GetActive()->GetEditor().IsOrthoEnabled();
+
+            ImVec2 btnPos = ImGui::GetCursorPos();
+            ImGui::TextColored(orthoEnabled ? colorActive : colorInactive, "正交(F8): ");
+            ImGui::SameLine();
+            ImGui::TextColored(orthoEnabled ? colorActive : colorInactive, orthoEnabled ? "开 " : "关 ");
+            ImGui::SetCursorPos(btnPos);
+            ImGui::InvisibleButton("ortho_toggle", ImVec2(80, ImGui::GetTextLineHeight()));
+            if (ImGui::IsItemClicked())
+            {
+                dm.GetActive()->GetEditor().ToggleOrtho();
+            }
+        }
+        ImGui::EndChild();
+        ImGui::SameLine();
+        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+        ImGui::SameLine();
+        // ── 当前文档 ─────────────────────────────────────────────
+        Document* active = dm.GetActive();
+        ImGui::TextDisabled("文档:");
+        ImGui::SameLine();
+        if (active)
+        {
+            ImGui::TextUnformatted(active->GetName().c_str());
+            if (active->IsDirty())
+            {
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.8f, 0.2f, 1.f));
+                ImGui::TextUnformatted("● 未保存");
+                ImGui::PopStyleColor();
+            }
+        }
+        else
+        {
+            ImGui::TextDisabled("无");
+        }
         // ── 当前文档 ─────────────────────────────────────────────
         Document* active = dm.GetActive();
         ImGui::TextDisabled("文档:");

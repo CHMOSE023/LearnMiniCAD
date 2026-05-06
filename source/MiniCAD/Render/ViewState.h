@@ -49,9 +49,10 @@ namespace MiniCAD
         float MouseX = 0;             // 客户区像素坐标
         float MouseY = 0;
         // ===== Render flags =====
-        bool ShowGrid      = true;    // 轴网
-        bool ShowGizmo     = true;    //  
-        bool ShowCurrorBox = true;    // 鼠标中间方框
+        bool ShowGrid       = true;    // 轴网
+        bool ShowGizmo      = true;    //  
+        bool ShowAxis       = true;    // 坐标轴
+        bool ShowCurrorBox  = true;    // 鼠标中间方框
 
         // ===== 最近点 ===== 
         SnapDraw Snap    = {};
