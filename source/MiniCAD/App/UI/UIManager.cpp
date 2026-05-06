@@ -20,16 +20,27 @@ namespace MiniCAD
         constexpr float kStatusBarHeight = 26.f;   // 状态栏高度
 
         // 工具元数据
-        struct ToolMeta { Tool id; const char* label; const char* tooltip; };
+        struct ToolMeta { Tool id; const char* icon; ; const char* tooltip; };
+        
         constexpr ToolMeta kTools[] =
         {
-            { Tool::Select,    "↖",  "选择 (Esc)"      },
-            { Tool::Line,      "╱",  "直线 (L)"        },
-            { Tool::Circle,    "○",  "圆 (C)"          },
-            { Tool::Rectangle, "□",  "矩形 (R)"        },
-            { Tool::Arc,       "⌒",  "圆弧 (A)"        },
-            { Tool::Pan,       "✥",  "平移 (Space)"    },
-            { Tool::Zoom,      "⊕",  "缩放 (Z)"        },
+            { Tool::Select,     "Cursor",  "选择 (Esc)"      },
+            /*---------------------------------------------*/
+            { Tool::Line,       "Line",    "直线 (L)"        },
+            { Tool::Circle,     "Circle",  "圆 (C)"          },
+            { Tool::Rectangle,  "Rect",    "矩形 (R)"        },
+            { Tool::Arc,        "Arc",     "圆弧 (A)"        },
+            { Tool::Ellipse,    "Ellipse", "椭圆 (E)"        },
+            { Tool::Pline,      "Pline",   "多段线 (Pl)"     },
+            { Tool::Spline,     "Spline",  "样条曲线 (SPL)"  },
+            /*---------------------------------------------*/ 
+            { Tool::Copy,       "Copy",    "复制 (co)"      },
+            { Tool::Move,       "Move",    "移动 (mv)"      },
+            { Tool::Mirror,     "Mirror",  "镜像 (mi)"      },
+            { Tool::Rotate,     "Rotate",  "旋转 (R)"       }, 
+            /*---------------------------------------------*/ 
+            { Tool::Undo,       "Undo",    "撤销"       }, 
+            { Tool::Redo,       "Redo",    "重做"       }, 
         };
     }
 
@@ -93,7 +104,36 @@ namespace MiniCAD
         dl->AddLine(ImVec2(cx - 5.0, cy - 5.0), ImVec2(cx + 5.0, cy + 5.4), col, 1.2f);
         dl->AddLine(ImVec2(cx + 5.0, cy - 5.4), ImVec2(cx - 5.0, cy + 5.0), col, 1.2f);
     }
-     
+
+    static void DrawDropdownIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 col)
+    {
+        float half = size * 0.5f;
+
+        ImVec2 p1 = ImVec2(center.x - half, center.y - half * 0.3f);
+        ImVec2 p2 = ImVec2(center.x + half, center.y - half * 0.3f);
+        ImVec2 p3 = ImVec2(center.x, center.y + half);
+
+        dl->AddTriangleFilled(p1, p2, p3, col);
+    }
+
+    static void DrawPetalLogo(ImDrawList* dl, ImVec2 center, float radius, int petalCount = 5, float amplitude = 0.12f, int segments = 120)
+    {
+        constexpr ImU32 col = IM_COL32(80, 180, 60, 255);   // 草绿
+
+        std::vector<ImVec2> pts;
+        pts.reserve(segments + 1);
+        for (int i = 0; i <= segments; i++)
+        {
+            float a = IM_PI * 2.f * i / segments;
+            float r = radius * (1.f + amplitude * sinf(petalCount * a));
+            pts.push_back({ center.x + r * cosf(a), center.y + r * sinf(a) });
+        }
+
+        // ── 三角扇 ──────────────────────────────────────────
+        for (int i = 0; i < segments; i++)
+            dl->AddTriangleFilled(center, pts[i], pts[i + 1], col);
+    }
+
     bool UIManager::Init(HWND hwnd, ID3D11Device* device, ID3D11DeviceContext* context)
     {
         m_hwnd   = hwnd; 
@@ -162,16 +202,7 @@ namespace MiniCAD
         ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode); 
         ImGui::End();
     }
-    inline void DrawDropdownIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 col)
-    {
-        float half = size * 0.5f;
-
-        ImVec2 p1 = ImVec2(center.x - half, center.y - half * 0.3f);
-        ImVec2 p2 = ImVec2(center.x + half, center.y - half * 0.3f);
-        ImVec2 p3 = ImVec2(center.x, center.y + half);
-
-        dl->AddTriangleFilled(p1, p2, p3, col);
-    }
+  
     void UIManager::DrawMenubar(DocumentManager& dm)
     { 
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.f, 6.f)); // 菜单栏高度 
@@ -182,7 +213,25 @@ namespace MiniCAD
             ImGui::PopStyleColor(); // 注意：即使没进去也要 Pop 
             return;
         }
-       
+
+        // ── Logo 花瓣 鼠标悬浮 缓慢旋转─────────────────────────────────────────────
+        {
+            const float radius = 8.f;
+            const float padL   = 2.f;   // Logo 左侧留白
+            const float gapR   = 12.f;  // Logo 右侧距菜单间距
+            ImDrawList* dl     = ImGui::GetWindowDrawList();
+            ImVec2      pos    = ImGui::GetCursorScreenPos();
+            float       menuH  = ImGui::GetFrameHeight();
+
+            ImVec2 center = { pos.x + padL + radius, pos.y + menuH * 0.5f };
+
+            DrawPetalLogo(dl, center, radius);
+
+            // Dummy 只占 Logo 自身宽度，右侧间距交给 SameLine
+            ImGui::Dummy(ImVec2(padL + radius * 2.f, menuH));
+            ImGui::SameLine(0.f, gapR);  // ← gapR 控制与菜单的距离
+        }
+
         // ── 菜单项 ───────────────────────────────────────────────
         if (ImGui::BeginMenu("文件"))
         {
@@ -332,63 +381,64 @@ namespace MiniCAD
         ImGui::BeginGroup();
 
         // 按钮样式（透明底）
-        ImVec4 btn = ImVec4(0, 0, 0, 0);
-        ImVec4 hover = ImVec4(0.25f, 0.25f, 0.30f, 0.8f);
+        ImVec4 btn     = ImVec4(0, 0, 0, 0);
+        ImVec4 hover   = ImVec4(0.25f, 0.25f, 0.30f, 0.8f);
         ImVec4 activeC = ImVec4(0.35f, 0.55f, 0.85f, 0.9f);
-
+        float  imVec2  = kToolBtnSize - 3.0 * 2;
         for (auto& meta : kTools)
         {
             bool active = (m_activeTool == meta.id);
 
-            ImGui::PushStyleColor(ImGuiCol_Button, btn);
+            ImGui::PushStyleColor(ImGuiCol_Button,        btn);
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, hover);
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, active ? activeC : hover);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,  active ? activeC : hover);
 
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 
             ImGui::PushID(static_cast<int>(meta.id));
-
-            if (ImGui::Button(meta.label, btnSize))
-                m_activeTool = meta.id;
+            
+            if (ImGui::ImageButton("##icon", m_toolIcons[meta.icon], ImVec2(imVec2, imVec2)))
+                m_activeTool = meta.id; 
 
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("%s", meta.tooltip);
 
-            ImGui::PopID();
-
+            ImGui::PopID(); 
             ImGui::PopStyleVar();
-            ImGui::PopStyleColor(3);
-
-            ImGui::SameLine();
-
+            ImGui::PopStyleColor(3); 
+            ImGui::SameLine(); 
             // 分隔线
-            if (meta.id == Tool::Select || meta.id == Tool::Arc)
+            if (meta.id == Tool::Select || meta.id == Tool::Spline || meta.id == Tool::Rotate)
             {
                 ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
                 ImGui::SameLine();
             }
         }
+        
+ 
+        if (false) //---占位保留，不渲染---
+        { 
+            // ===== 4️ 右侧 Undo / Redo =====
+            float rightOffset = bgWidth - (btnSize.x * 2.0f + padding * 2.0f + 6.0f);
+            ImGui::SameLine(rightOffset);
 
-        // ===== 4️⃣ 右侧 Undo / Redo =====
-        float rightOffset = bgWidth - (btnSize.x * 2.0f + padding * 2.0f + 6.0f);
-        ImGui::SameLine(rightOffset);
+            ImGui::PushStyleColor(ImGuiCol_Button, btn);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, hover);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, hover);
 
-        ImGui::PushStyleColor(ImGuiCol_Button, btn);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, hover);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, hover);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
+            if (ImGui::ImageButton("##iconUndo", m_toolIcons["Undo"], ImVec2(imVec2, imVec2)))
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("撤销 (Ctrl+Z)");
 
-        if (ImGui::Button("↩", btnSize)) { /* TODO: Undo */ }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("撤销 (Ctrl+Z)");
+            ImGui::SameLine(0.f, 4.f);
 
-        ImGui::SameLine(0.f, 4.f);
+            if (ImGui::ImageButton("##iconRedo", m_toolIcons["Redo"], ImVec2(imVec2, imVec2)))
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("重做 (Ctrl+Y)");
 
-        if (ImGui::Button("↪", btnSize)) { /* TODO: Redo */ }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("重做 (Ctrl+Y)");
-
-        ImGui::PopStyleVar();
-        ImGui::PopStyleColor(3);
+            ImGui::PopStyleVar();
+            ImGui::PopStyleColor(3);
+        } 
 
         ImGui::EndGroup();
 
@@ -499,9 +549,10 @@ namespace MiniCAD
                           false,
                           ImGuiWindowFlags_NoScrollbar);
 
+          
         // ── 当前工具 ─────────────────────────────────────────────
         const char* toolNames[] = {
-            "选择", "直线", "圆", "矩形", "圆弧", "平移", "缩放"
+            "选择", "直线", "圆", "矩形", "圆弧", "椭圆", "多段线", "样条曲线", "复制", "移动", "镜像", "旋转", "撤销", "重做"
         };
         ImGui::TextDisabled("工具:");
         ImGui::SameLine();
@@ -617,7 +668,9 @@ namespace MiniCAD
                 "icons/Pline.png",
                 "icons/Rect.png",
                 "icons/Rotate.png",
-                "icons/Spline.png"
+                "icons/Spline.png",
+                "icons/Redo.png",
+                "icons/Undo.png",
         }; 
 
         m_toolIcons.clear(); 

@@ -8,17 +8,26 @@
 namespace MiniCAD
 { 
     class DocumentManager;
-
+     
     enum class Tool : int
     {
-        Select = 0,
-        Line,
+        Select = 0, // Cursor
+        /*-----*/ 
+        Line,      
         Circle,
-        Rectangle,
+        Rectangle,  // Rect
         Arc,
-        Pan,
-        Zoom,
-        COUNT
+        Ellipse,
+        Pline,
+        Spline,  
+        /*-----*/
+        Copy,
+        Move,
+        Mirror,
+        Rotate,
+        /*-----*/
+        Redo,
+        Undo,
     };
      
     // =========================================================
@@ -73,11 +82,9 @@ namespace MiniCAD
         ID3D11Device*               m_device = nullptr;
         float                       m_captionButtonsScreenX=0.f;
         DocImageState               m_docImageState{};
-        ImVec2                      m_lastLocal = ImVec2(0, 0);
+        ImVec2                      m_lastLocal  = ImVec2(0, 0);
         Tool                        m_activeTool = Tool::Select;
-
-        ImTextureID                 m_icons[(int)Icon::COUNT] = {};
-
+          
         std::unordered_map<std::string, ImTextureID> m_toolIcons;
     };
 }
