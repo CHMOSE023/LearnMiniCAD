@@ -321,11 +321,16 @@ namespace MiniCAD
 		m_docManager.Create(renderer, width, height); // 创建2个文档 
 		m_docManager.Create(renderer, width, height); // 创建3个文档 
 
+		m_docManager.SetRenderer(&renderer);
+
 		return true;
 	}
 
 	void MainWindow::DocumentInput()
 	{
+		if(m_docManager.GetActive() == nullptr)
+			return;
+
 		auto imgState = m_uiManager.GetDocImageState();
 
         if (!imgState.Hovered)
