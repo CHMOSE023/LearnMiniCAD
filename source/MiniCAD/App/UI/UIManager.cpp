@@ -54,7 +54,9 @@ namespace MiniCAD
             { Tool::Redo,       "Redo",    "重做"          ,[](DocumentManager& dm) {dm.Redo();}},
         };
     }
+   
 
+  
     // ── 工具函数 ────────────────────────────────────────────
     static ImVec2 RectCenter(ImVec2 min, ImVec2 size)
     {
@@ -258,19 +260,34 @@ namespace MiniCAD
             ImGui::EndMenu();
         } 
 
-        auto& editor = dm.GetActive()->GetEditor(); 
+        //auto& editor = dm.GetActive()->GetEditor(); 
 
         if (ImGui::BeginMenu("编辑"))
-        { 
-            if (ImGui::MenuItem("复制", "Ctrl+C"))    { dm.CopySelected(); }
-            if (ImGui::MenuItem("粘贴", "Ctrl+V"))    { dm.Paste(); }
-            if (ImGui::MenuItem("撤销", "Ctrl+Z"))    { dm.Undo(); }
-            if (ImGui::MenuItem("重做", "Ctrl+Y"))    { dm.Redo(); }
-            //ImGui::Separator();
+        {
+            if (ImGui::MenuItem("撤销", "Ctrl+Z")) { dm.Undo(); }
+            if (ImGui::MenuItem("重做", "Ctrl+Y")) { dm.Redo(); }
+            if (ImGui::MenuItem("粘贴(P)", "Ctrl+V")) { dm.Paste(); }
+            if (ImGui::MenuItem("复制(C)", "Ctrl+C")) { dm.CopySelected(); }
             ImGui::EndMenu();
         }
-         
 
+        if (ImGui::BeginMenu("修改"))
+        {
+            if (ImGui::MenuItem("阵列", "Array")) {}
+            if (ImGui::MenuItem("移动", "Move")) {}
+            if (ImGui::MenuItem("镜像", "Mirror")) {}
+            if (ImGui::MenuItem("旋转", "Rotate")) {}
+            ImGui::EndMenu();
+        }
+        auto& editor = dm.GetActive()->GetEditor();
+        /***auto* active = dm.GetActive();
+        if (!active)
+        {
+            ImGui::EndMenuBar();
+            ImGui::PopStyleVar();
+            return;
+        }
+        auto& editor = active->GetEditor();***/
         if (ImGui::BeginMenu("绘图"))
         {
             if (ImGui::MenuItem("直线",     "Line"))      { editor.StartLineTool(); }
@@ -278,18 +295,7 @@ namespace MiniCAD
             if (ImGui::MenuItem("矩形",     "Rectangle")) { editor.StartRectangleTool(); }
             if (ImGui::MenuItem("圆",       "Circle"))    { editor.StartCircleTool(); }
             if (ImGui::MenuItem("圆弧",     "Arc"))       { editor.StartArcTool(); }
-            if (ImGui::MenuItem("椭圆",     "Ellipse"))   { editor.StartEllipseTool(); }
-            if (ImGui::MenuItem("样条线",   "Polyline"))  { editor.StartPolylineTool(); }
-            if (ImGui::MenuItem("自由曲线", "Spline"))    { editor.StartSplineTool(); }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("修改"))
-        {
-            if (ImGui::MenuItem("复制", "Copy"))   { editor.StartCopyTool(); }
-            if (ImGui::MenuItem("移动", "Move"))   { editor.StartMoveTool(); }
-            if (ImGui::MenuItem("镜像", "Mirror")) { editor.StartMirrorTool(); }
-            if (ImGui::MenuItem("旋转", "Rotate")) { editor.StartRotateTool(); }
+            if (ImGui::MenuItem("旋转",     "Rotate"))    { editor.StartRotateTool(); }
             
             ImGui::EndMenu();
         }
@@ -303,22 +309,28 @@ namespace MiniCAD
             ImGui::MenuItem("显示Gizmo", nullptr, &showGizmo); { viewport.ShowGizmo(showGizmo); }
             ImGui::EndMenu();
         }
+        static bool showAbout = false;
         if (ImGui::BeginMenu("帮助"))
         {
-            if (ImGui::MenuItem("关于")) { ImGui::OpenPopup("AboutPopup"); }
+            if (ImGui::MenuItem("关于")) { showAbout = true; }
             ImGui::EndMenu();
         }
+        if (showAbout)
+        {
+            ImGui::OpenPopup("关于");
+            showAbout = false;
+        }
         // About 弹窗
-        if (ImGui::BeginPopupModal("AboutPopup", nullptr,
+        if (ImGui::BeginPopupModal("关于", nullptr,
             ImGuiWindowFlags_AlwaysAutoResize))
         {
-            ImGui::Text("MyEditor");
+            ImGui::Text("MiniCAD");
             ImGui::Separator();
 
             ImGui::Text("版本: 1.0");
-            ImGui::Text("基于 Dear ImGui + OpenGL");
-            ImGui::Text("作者: YourName");
-
+            ImGui::Text("基于 Dear ImGui");
+            ImGui::Text("作者:\n            Hello");
+            ImGui::Text("鸣谢:\n        Qizhiwoniu\n          七只蜗牛");
             ImGui::Spacing();
 
             if (ImGui::Button("关闭", ImVec2(120, 0)))
@@ -328,6 +340,7 @@ namespace MiniCAD
 
             ImGui::EndPopup();
         }
+    
         // ── 右侧窗口控制按钮 ─────────────────────────────────────
         {
             const float btnW = 32.f;
