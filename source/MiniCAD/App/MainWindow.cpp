@@ -91,8 +91,7 @@ namespace MiniCAD
 				}
 				else
 				{
-					MsgWaitForMultipleObjects(0, nullptr, FALSE, 8, QS_ALLINPUT);
-					needsRedraw = true; 
+					WaitMessage(); // 等待新消息，节省 CPU
 				}
 			}
 		}
