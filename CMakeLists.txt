@@ -9,7 +9,7 @@ if(MSVC)
     add_compile_options(/utf-8)                                                 # 源文件按 UTF-8 解析
 endif()
     
-add_library(imgui
+add_library(Imgui
     thirdParty/imgui/imgui.cpp
     thirdParty/imgui/imgui_draw.cpp
     thirdParty/imgui/imgui_widgets.cpp
@@ -19,48 +19,36 @@ add_library(imgui
     thirdParty/imgui/backends/imgui_impl_dx11.cpp
 )
 
-target_include_directories(imgui PUBLIC 
+target_include_directories(Imgui PUBLIC 
     thirdParty/imgui
     thirdParty/imgui/backends
+) 
+        
+include_directories("${CMAKE_SOURCE_DIR}/src"
+                    "${CMAKE_SOURCE_DIR}/thirdParty")          # include 路径
+
+file(GLOB_RECURSE SRC  "${CMAKE_SOURCE_DIR}/src/*.cpp"  
+                       "${CMAKE_SOURCE_DIR}/src/*.hpp")   
+
+add_executable(MiniCAD  ${SRC} ) 
+
+target_link_libraries(MiniCAD  PRIVATE Imgui d3d11 dxgi D3DCompiler) 
+
+set_target_properties(MiniCAD PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY         "${CMAKE_BINARY_DIR}/MiniCAD"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG   "${CMAKE_BINARY_DIR}/MiniCAD"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/MiniCAD"
+    VS_DEBUGGER_WORKING_DIRECTORY    "${CMAKE_BINARY_DIR}/MiniCAD"
 )
 
-set(LESSON_ROOT "${CMAKE_SOURCE_DIR}/source")                                   # 1.源码根目录
-                                                                                
-file(GLOB LESSON_NAMES RELATIVE ${LESSON_ROOT} ${LESSON_ROOT}/*)                # 2.获取每课程的目录名（即子文件夹名），GLOB仅包括子目录
-                                                                                
-foreach(LESSON_NAME ${LESSON_NAMES})                                            # 3.遍历 LESSON_NAMES 为每个课程生成独立的可执行文件
+file(GLOB_RECURSE ASSETS "${CMAKE_SOURCE_DIR}/src/*.hlsl") 
 
-    set(LESSON_DIR "${LESSON_ROOT}/${LESSON_NAME}")                             # 3.1 当前课程的完整路径   
-    
-    file(GLOB_RECURSE LESSON_SOURCES CONFIGURE_DEPENDS "${LESSON_DIR}/*.cpp")   # 3.2 收集课程下所有 .cpp 源文件（含子目录），GLOB_RECURSE 递归子目录   
-   
-    if(LESSON_SOURCES)  
-        add_executable(${LESSON_NAME} ${LESSON_SOURCES})                        # 3.3 以课程名创建可执行目标
-   
-        target_include_directories(${LESSON_NAME} PRIVATE "${LESSON_DIR}/"      # 3.4 课程私有头文件目录 
-                                       "${CMAKE_SOURCE_DIR}/thirdParty/stb")      
-
-        target_link_libraries(${LESSON_NAME} PRIVATE                            # 3.5 链接所需库 
-            d3d11 dxgi d3dcompiler  imgui
-        ) 
-
-        set_target_properties(${LESSON_NAME} PROPERTIES                         # 3.6 可执行文件输出目录
-            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${LESSON_NAME}"
-        )
-
-        file(GLOB_RECURSE HLSL_SHADERS "${LESSON_DIR}/*.hlsl")                  # 3.7 收集课程下的 HLSL 着色器文件
- 
-        if(HLSL_SHADERS)                                                        # 3.8 构建后将着色器拷贝到输出目录
-            add_custom_command(TARGET ${LESSON_NAME} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    ${HLSL_SHADERS}
-                    $<TARGET_FILE_DIR:${LESSON_NAME}>
-                COMMENT "Copying HLSL shaders for ${LESSON_NAME}"
-            )
-        endif()
-    endif()
-endforeach()
-
+if(ASSETS)
+     add_custom_command(TARGET MiniCAD  POST_BUILD           
+                 COMMAND ${CMAKE_COMMAND} -E copy_if_different  ${ASSETS}  "$<TARGET_FILE_DIR:MiniCAD>"
+                 COMMENT "Copy assets for MiniCAD"
+     )  
+ endif()
 # 把 icons 复制到 MiniCAD icons
 file(GLOB_RECURSE ASSETS_ICONS "${CMAKE_SOURCE_DIR}/assets/icons/*")
 if(ASSETS_ICONS)
