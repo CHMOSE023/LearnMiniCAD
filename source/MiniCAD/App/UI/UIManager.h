@@ -18,7 +18,7 @@ namespace MiniCAD
         Rectangle,  // Rect
         Arc,
         Ellipse,
-        Pline,
+        Polyline,
         Spline,  
         /*-----*/
         Copy,

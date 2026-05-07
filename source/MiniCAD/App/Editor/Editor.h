@@ -36,8 +36,20 @@ namespace MiniCAD
 		const bool IsAcitveTool() { return m_tool != nullptr; };  
 		 
 		// ── 工具 ───────────────────────────────────────
-		void StartLineTool();  // 绘制线
-		void StartPointTool(); // 绘制点
+		void StartLineTool();          // 绘制线
+		void StartPointTool();         // 绘制点
+		void StartRectangleTool() {};  // 绘制矩形
+		void StartCircleTool() {};     // 绘制圆
+		void StartArcTool() {};        // 绘制圆弧
+		void StartEllipseTool() {};    // 绘制椭圆
+		void StartPolylineTool() {};   // 绘制多段线
+		void StartSplineTool() {};     // 绘制样条曲线
+
+
+
+
+
+
 		// ── 删除选中实体 ──────────────────────────────────
 		void DeleteSelected();  
 		   

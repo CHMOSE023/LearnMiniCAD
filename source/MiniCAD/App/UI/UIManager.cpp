@@ -31,7 +31,7 @@ namespace MiniCAD
             { Tool::Rectangle,  "Rect",    "矩形 (R)"        },
             { Tool::Arc,        "Arc",     "圆弧 (A)"        },
             { Tool::Ellipse,    "Ellipse", "椭圆 (E)"        },
-            { Tool::Pline,      "Pline",   "多段线 (Pl)"     },
+            { Tool::Polyline,   "Pline",   "多段线 (Pl)"     },
             { Tool::Spline,     "Spline",  "样条曲线 (SPL)"  },
             /*---------------------------------------------*/ 
             { Tool::Copy,       "Copy",    "复制 (co)"      },
@@ -236,22 +236,45 @@ namespace MiniCAD
         // ── 菜单项 ───────────────────────────────────────────────
         if (ImGui::BeginMenu("文件"))
         {
-            if (ImGui::MenuItem("新建", "Ctrl+N")) {}
-            if (ImGui::MenuItem("打开", "Ctrl+O")) {}
-            if (ImGui::MenuItem("保存", "Ctrl+S")) {}
-            if (ImGui::MenuItem("另存为", "Ctrl+Shift+S")) {}
+            if (ImGui::MenuItem("新建", "Ctrl+N"))         { dm.New(); }
+            if (ImGui::MenuItem("打开", "Ctrl+O"))         { dm.Open(); }
+            if (ImGui::MenuItem("保存", "Ctrl+S"))         { dm.Save(); }
+            if (ImGui::MenuItem("另存为", "Ctrl+Shift+S")) { dm.SaveAs(); }
+
             ImGui::Separator();
             if (ImGui::MenuItem("退出", "Alt+F4"))
                 PostMessage(m_hwnd, WM_CLOSE, 0, 0);
             ImGui::EndMenu();
         }
+		// 先弄这些吧，后续再补充更多编辑功能
         if (ImGui::BeginMenu("编辑"))
         {
-            if (ImGui::MenuItem("撤销", "Ctrl+Z")) {}
-            if (ImGui::MenuItem("重做", "Ctrl+Y")) {}
+            if (ImGui::MenuItem("复制", "Copy"))   {  }
+            if (ImGui::MenuItem("移动", "Move"))   {  }
+            if (ImGui::MenuItem("镜像", "Mirror")) {  }
+            if (ImGui::MenuItem("旋转", "Rotate")) {  }
             ImGui::Separator();
-            if (ImGui::MenuItem("复制", "Ctrl+C")) {}
-            if (ImGui::MenuItem("粘贴", "Ctrl+V")) {}
+            if (ImGui::MenuItem("复制(C)", "Ctrl+C")) { dm.CopySelected(); }
+            if (ImGui::MenuItem("撤销", "Ctrl+Z")) { dm.Undo(); }
+            if (ImGui::MenuItem("重做", "Ctrl+Y")) { dm.Redo(); }
+            if (ImGui::MenuItem("粘贴", "Ctrl+V")) { dm.Paste(); }
+            ImGui::Separator();
+            ImGui::EndMenu();
+        }
+         
+        auto& editor = dm.GetActive()->GetEditor();
+        
+
+        if (ImGui::BeginMenu("绘图"))
+        {
+            if (ImGui::MenuItem("直线",     "Line"))      { editor.StartLineTool(); }
+            if (ImGui::MenuItem("点",       "Point"))     { editor.StartPointTool(); }
+            if (ImGui::MenuItem("矩形",     "Rectangle")) { editor.StartRectangleTool(); }
+            if (ImGui::MenuItem("圆",       "Circle"))    { editor.StartCircleTool(); }
+            if (ImGui::MenuItem("圆弧",     "Arc"))       { editor.StartArcTool(); }
+            if (ImGui::MenuItem("椭圆",     "Ellipse"))   { editor.StartEllipseTool(); }
+            if (ImGui::MenuItem("样条线",   "Polyline"))  { editor.StartPolylineTool(); }
+            if (ImGui::MenuItem("自由曲线", "Spline"))    { editor.StartSplineTool(); }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("视图"))
@@ -265,10 +288,29 @@ namespace MiniCAD
         }
         if (ImGui::BeginMenu("帮助"))
         {
-            if (ImGui::MenuItem("关于")) {}
+            if (ImGui::MenuItem("关于")) { ImGui::OpenPopup("AboutPopup"); }
             ImGui::EndMenu();
         }
+        // About 弹窗
+        if (ImGui::BeginPopupModal("AboutPopup", nullptr,
+            ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text("MyEditor");
+            ImGui::Separator();
 
+            ImGui::Text("版本: 1.0");
+            ImGui::Text("基于 Dear ImGui + OpenGL");
+            ImGui::Text("作者: YourName");
+
+            ImGui::Spacing();
+
+            if (ImGui::Button("关闭", ImVec2(120, 0)))
+            {
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
         // ── 右侧窗口控制按钮 ─────────────────────────────────────
         {
             const float btnW = 32.f;

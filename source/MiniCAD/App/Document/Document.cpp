@@ -219,9 +219,11 @@ namespace MiniCAD
 
         // 最近点 
         vs.Snap.SnapType = static_cast<SnapDraw::Type>(m_currentSnap.SnapType);
-        vs.Snap.Pos      = m_viewport.GetCamera().WorldToScreen(m_currentSnap.WorldPos);
-        //m_currentSnap    = {};// 获取后清零有残留， 最近点闪烁注释此行
-
+        vs.Snap.Pos      = m_viewport.GetCamera().WorldToScreen(m_currentSnap.WorldPos); 
+		if (!m_editor.IsAcitveTool())  
+        {
+            m_currentSnap = {};// 重置最近点
+        }
         // 光标中间方框
         vs.ShowCurrorBox = !m_editor.IsAcitveTool();
 
