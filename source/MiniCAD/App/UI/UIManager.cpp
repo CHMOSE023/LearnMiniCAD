@@ -10,6 +10,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h> 
 #include "pch.h" 
+#include <functional>
 
 namespace MiniCAD
 { 
@@ -20,27 +21,37 @@ namespace MiniCAD
         constexpr float kStatusBarHeight = 26.f;   // 状态栏高度
 
         // 工具元数据
-        struct ToolMeta { Tool id; const char* icon; ; const char* tooltip; };
+        struct ToolMeta 
+        { 
+            Tool        id; 
+            const char* icon;  
+            const char* tooltip;
+            std::function<void(DocumentManager&)> onActivate;
+        };
         
-        constexpr ToolMeta kTools[] =
+        //if (ImGui::MenuItem("复制", "Copy")) { editor.StartCopyTool(); }
+        //if (ImGui::MenuItem("移动", "Move")) { editor.StartMoveTool(); }
+        //if (ImGui::MenuItem("镜像", "Mirror")) { editor.StartMirrorTool(); }
+        //if (ImGui::MenuItem("旋转", "Rotate")) { editor.StartRotateTool(); }
+        inline  ToolMeta kTools[] =
         {
-            { Tool::Select,     "Cursor",  "选择 (Esc)"      },
+            { Tool::Select,     "Cursor",  "选择 (Esc)"   , [](DocumentManager& dm) {}   },
             /*---------------------------------------------*/
-            { Tool::Line,       "Line",    "直线 (L)"        },
-            { Tool::Circle,     "Circle",  "圆 (C)"          },
-            { Tool::Rectangle,  "Rect",    "矩形 (R)"        },
-            { Tool::Arc,        "Arc",     "圆弧 (A)"        },
-            { Tool::Ellipse,    "Ellipse", "椭圆 (E)"        },
-            { Tool::Polyline,   "Pline",   "多段线 (Pl)"     },
-            { Tool::Spline,     "Spline",  "样条曲线 (SPL)"  },
+            { Tool::Line,       "Line",    "直线 (L)"      ,[](DocumentManager& dm) {dm.GetActive()->GetEditor().StartLineTool(); }  },
+            { Tool::Circle,     "Circle",  "圆 (C)"        ,[](DocumentManager& dm) {dm.GetActive()->GetEditor().StartCircleTool(); }  },
+            { Tool::Rectangle,  "Rect",    "矩形 (R)"      ,[](DocumentManager& dm) {dm.GetActive()->GetEditor().StartRectangleTool(); }  },
+            { Tool::Arc,        "Arc",     "圆弧 (A)"      ,[](DocumentManager& dm) {dm.GetActive()->GetEditor().StartArcTool(); }  },
+            { Tool::Ellipse,    "Ellipse", "椭圆 (E)"      ,[](DocumentManager& dm) {dm.GetActive()->GetEditor().StartEllipseTool(); }  },
+            { Tool::Polyline,   "Pline",   "多段线 (Pl)"   ,[](DocumentManager& dm) {dm.GetActive()->GetEditor().StartPolylineTool(); }  },
+            { Tool::Spline,     "Spline",  "样条曲线 (SPL)",[](DocumentManager& dm) {dm.GetActive()->GetEditor().StartSplineTool(); }   },
             /*---------------------------------------------*/ 
-            { Tool::Copy,       "Copy",    "复制 (co)"      },
-            { Tool::Move,       "Move",    "移动 (mv)"      },
-            { Tool::Mirror,     "Mirror",  "镜像 (mi)"      },
-            { Tool::Rotate,     "Rotate",  "旋转 (R)"       }, 
+            { Tool::Copy,       "Copy",    "复制 (co)"     ,[](DocumentManager& dm) {dm.GetActive()->GetEditor().StartCopyTool(); }},
+            { Tool::Move,       "Move",    "移动 (mv)"     ,[](DocumentManager& dm) {dm.GetActive()->GetEditor().StartMoveTool(); }},
+            { Tool::Mirror,     "Mirror",  "镜像 (mi)"     ,[](DocumentManager& dm) {dm.GetActive()->GetEditor().StartMirrorTool(); }},
+            { Tool::Rotate,     "Rotate",  "旋转 (R)"      ,[](DocumentManager& dm) {dm.GetActive()->GetEditor().StartRotateTool(); }}, 
             /*---------------------------------------------*/ 
-            { Tool::Undo,       "Undo",    "撤销"       }, 
-            { Tool::Redo,       "Redo",    "重做"       }, 
+            { Tool::Undo,       "Undo",    "撤销"          ,[](DocumentManager& dm) {dm.Undo();}},
+            { Tool::Redo,       "Redo",    "重做"          ,[](DocumentManager& dm) {dm.Redo();}},
         };
     }
 
@@ -245,25 +256,20 @@ namespace MiniCAD
             if (ImGui::MenuItem("退出", "Alt+F4"))
                 PostMessage(m_hwnd, WM_CLOSE, 0, 0);
             ImGui::EndMenu();
-        }
-		// 先弄这些吧，后续再补充更多编辑功能
+        } 
+
+        auto& editor = dm.GetActive()->GetEditor(); 
+
         if (ImGui::BeginMenu("编辑"))
-        {
-            if (ImGui::MenuItem("复制", "Copy"))   {  }
-            if (ImGui::MenuItem("移动", "Move"))   {  }
-            if (ImGui::MenuItem("镜像", "Mirror")) {  }
-            if (ImGui::MenuItem("旋转", "Rotate")) {  }
-            ImGui::Separator();
-            if (ImGui::MenuItem("复制(C)", "Ctrl+C")) { dm.CopySelected(); }
-            if (ImGui::MenuItem("撤销", "Ctrl+Z")) { dm.Undo(); }
-            if (ImGui::MenuItem("重做", "Ctrl+Y")) { dm.Redo(); }
-            if (ImGui::MenuItem("粘贴", "Ctrl+V")) { dm.Paste(); }
-            ImGui::Separator();
+        { 
+            if (ImGui::MenuItem("复制", "Ctrl+C"))    { dm.CopySelected(); }
+            if (ImGui::MenuItem("粘贴", "Ctrl+V"))    { dm.Paste(); }
+            if (ImGui::MenuItem("撤销", "Ctrl+Z"))    { dm.Undo(); }
+            if (ImGui::MenuItem("重做", "Ctrl+Y"))    { dm.Redo(); }
+            //ImGui::Separator();
             ImGui::EndMenu();
         }
          
-        auto& editor = dm.GetActive()->GetEditor();
-        
 
         if (ImGui::BeginMenu("绘图"))
         {
@@ -277,6 +283,17 @@ namespace MiniCAD
             if (ImGui::MenuItem("自由曲线", "Spline"))    { editor.StartSplineTool(); }
             ImGui::EndMenu();
         }
+
+        if (ImGui::BeginMenu("修改"))
+        {
+            if (ImGui::MenuItem("复制", "Copy"))   { editor.StartCopyTool(); }
+            if (ImGui::MenuItem("移动", "Move"))   { editor.StartMoveTool(); }
+            if (ImGui::MenuItem("镜像", "Mirror")) { editor.StartMirrorTool(); }
+            if (ImGui::MenuItem("旋转", "Rotate")) { editor.StartRotateTool(); }
+            
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("视图"))
         {
             auto& viewport = dm.GetActive()->GetViewport();
@@ -434,14 +451,16 @@ namespace MiniCAD
 
             ImGui::PushStyleColor(ImGuiCol_Button,        btn);
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, hover);
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive,  active ? activeC : hover);
-
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,  active ? activeC : hover); 
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
-
+              
             ImGui::PushID(static_cast<int>(meta.id));
             
             if (ImGui::ImageButton("##icon", m_toolIcons[meta.icon], ImVec2(imVec2, imVec2)))
-                m_activeTool = meta.id; 
+            {
+                m_activeTool = meta.id;
+                if (meta.onActivate) meta.onActivate(dm);
+            }
 
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("%s", meta.tooltip);
@@ -513,7 +532,11 @@ namespace MiniCAD
             if (ImGui::BeginTabItem(label.c_str(), &open))
             {
                 if (doc != active)
+                {
                     dm.SetActive(doc);
+                    // ImGui::EndTabItem();
+                    // continue; 
+                }
                  
                 // 去掉内边距
                 ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -581,6 +604,9 @@ namespace MiniCAD
 
     void UIManager::DrawStatusBar(DocumentManager& dm)
     {
+        if (!dm.GetActive())
+            return;
+
         ImGuiStyle& s = ImGui::GetStyle();
 
         //ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6.f, 3.f));
@@ -730,7 +756,7 @@ namespace MiniCAD
             m_toolIcons.emplace(key, std::move(srv));
         }   
     }
-
+      
     ImTextureID  UIManager::LoadTextureFromFile(const char* path)
     {
         // 用 stb_image 读取图片

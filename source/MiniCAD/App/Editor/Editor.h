@@ -36,19 +36,20 @@ namespace MiniCAD
 		const bool IsAcitveTool() { return m_tool != nullptr; };  
 		 
 		// ── 工具 ───────────────────────────────────────
-		void StartLineTool();          // 绘制线
-		void StartPointTool();         // 绘制点
-		void StartRectangleTool() {};  // 绘制矩形
-		void StartCircleTool() {};     // 绘制圆
-		void StartArcTool() {};        // 绘制圆弧
-		void StartEllipseTool() {};    // 绘制椭圆
-		void StartPolylineTool() {};   // 绘制多段线
-		void StartSplineTool() {};     // 绘制样条曲线
-
-
-
-
-
+		void StartLineTool     ();                                 // 绘制线
+		void StartPointTool    ();                                 // 绘制点
+		void StartRectangleTool() { printf("绘制矩形\r\n"    ); };  // 绘制矩形
+		void StartCircleTool   () { printf("绘制圆\r\n"      ); };  // 绘制圆
+		void StartArcTool      () { printf("绘制圆弧\r\n"    ); };  // 绘制圆弧
+		void StartEllipseTool  () { printf("绘制椭圆\r\n"    ); };  // 绘制椭圆
+		void StartPolylineTool () { printf("绘制多段线\r\n"  ); };  // 绘制多段线
+		void StartSplineTool   () { printf("绘制样条曲线\r\n"); };  // 绘制样条曲线
+		 
+		void StartCopyTool     () { printf("编辑 复制\r\n"); };     // 复制
+		void StartMoveTool     () { printf("编辑 移动\r\n"); };     // 移动
+		void StartMirrorTool   () { printf("编辑 镜像\r\n"); };     // 镜像
+		void StartRotateTool   () { printf("编辑 旋转\r\n"); };     // 旋转
+		  
 
 		// ── 删除选中实体 ──────────────────────────────────
 		void DeleteSelected();  
