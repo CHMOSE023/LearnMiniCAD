@@ -173,13 +173,15 @@ namespace MiniCAD
         ImGui::SetNextWindowPos(vp->WorkPos);
         ImGui::SetNextWindowSize(vp->WorkSize);
         ImGui::SetNextWindowViewport(vp->ID);
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0, 6.f)); // 菜单栏高度 
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  ImVec2(10.0, 6.f)); // 菜单栏高度 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-        ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(0.f, 0.f, 0.f, 0.f));
-        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.f, 0.f, 0.f, 0.f));
+        ImGui::PushStyleColor(ImGuiCol_MenuBarBg,    ImVec4(0.f, 0.f, 0.f, 0.f));
+        ImGui::PushStyleColor(ImGuiCol_Border,       ImVec4(0.f, 0.f, 0.f, 0.f));
         ImGui::PushStyleColor(ImGuiCol_BorderShadow, ImVec4(0.f, 0.f, 0.f, 0.f)); 
+
         ImGui::Begin("MiniCAD", nullptr, flags);
+
         ImGui::PopStyleVar(3);
         ImGui::PopStyleColor(3);
         // ── 1. 菜单栏（含最小化/最大化/关闭） ──────────────────
@@ -206,14 +208,13 @@ namespace MiniCAD
     void UIManager::DrawMenubar(DocumentManager& dm)
     { 
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.f, 6.f)); // 菜单栏高度 
-       
+        
         if (!ImGui::BeginMenuBar())
         {
-            ImGui::PopStyleVar(); 
-            ImGui::PopStyleColor(); // 注意：即使没进去也要 Pop 
+            ImGui::PopStyleVar();  
             return;
         }
-
+           
         // ── Logo 花瓣 鼠标悬浮 缓慢旋转─────────────────────────────────────────────
         {
             const float radius = 8.f;
