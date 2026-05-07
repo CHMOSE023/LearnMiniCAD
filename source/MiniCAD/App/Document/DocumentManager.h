@@ -20,6 +20,17 @@ namespace MiniCAD
 
         std::vector<std::unique_ptr<Document>>& GetAll() { return m_docs; }
 
+		// 实现菜单这些实现 我来弄  头文件先占位
+    public:
+        void New()    { printf("New\n"); }
+        void Open()   { printf("Open\n"); }
+        void Save()   { printf("Save\n"); }
+		void SaveAs() { printf("Save As\n"); }
+		void Undo()   { printf("Undo\n");    }
+		void Redo()   { printf("Redo\n"); }
+		void Paste()  { printf("Paste\n"); }
+
+		void CopySelected()   { printf("Copy Selected\n"); }
     private:
         std::string GenerateUniqueName();
 
