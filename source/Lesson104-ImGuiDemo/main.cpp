@@ -178,12 +178,15 @@ int main(int, char**)
     style.ScaleAllSizes(main_scale);        
     style.FontScaleDpi = main_scale;    
     style.WindowRounding = 12.0f;
-    style.ChildRounding  = 6.0f;
+    //style.ChildRounding  = 6.0f;
     style.PopupRounding  = 6.0f;
     style.FrameRounding  = 6.0f;
 
+    //style.ChildBorderSize = 0.0f;
+    style.ChildRounding   = 0.0f;
     io.ConfigDpiScaleFonts = true;        
     io.ConfigDpiScaleViewports = true;     
+
   
 
     //if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
@@ -201,7 +204,6 @@ int main(int, char**)
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
      
-  
 
 
 
@@ -240,64 +242,64 @@ int main(int, char**)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
           
-         BeginDockSpace();
-         RenderFrameDrawList();
-         RenderFrameDrawImage();
+         //BeginDockSpace();
+         //RenderFrameDrawList();
+         //RenderFrameDrawImage();
          RenderLaylout();
       
-        {  // 来个圆角
+        //{  // 来个圆角
 
-            ImGuiStyle& style = ImGui::GetStyle();
-            style.WindowRounding = 12.0f;
-            style.WindowBorderSize = 1.0f;
-            style.WindowPadding = ImVec2(10, 10);
+        //    ImGuiStyle& style = ImGui::GetStyle();
+        //    style.WindowRounding = 12.0f;
+        //    style.WindowBorderSize = 1.0f;
+        //    style.WindowPadding = ImVec2(10, 10);
 
-            ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
-          
-            //ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-            //ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(0.2f, 0.2f, 0.2f, 0.0f));
+        //    ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
+        //  
+        //    //ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        //    //ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(0.2f, 0.2f, 0.2f, 0.0f));
 
-            ImGui::Begin("MainWindow1", &showWindow1,
-                ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoTitleBar);
+        //    ImGui::Begin("MainWindow1", &showWindow1,
+        //        ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoTitleBar);
 
-            if (ImGui::BeginMenuBar())
-            {
-                if (ImGui::BeginMenu("文件"))
-                {
-                    ImGui::MenuItem("新建", "Ctrl+N");
-                    ImGui::MenuItem("打开", "Ctrl+O");
-                    ImGui::EndMenu();
-                }
+        //    if (ImGui::BeginMenuBar())
+        //    {
+        //        if (ImGui::BeginMenu("文件"))
+        //        {
+        //            ImGui::MenuItem("新建", "Ctrl+N");
+        //            ImGui::MenuItem("打开", "Ctrl+O");
+        //            ImGui::EndMenu();
+        //        }
 
-                if (ImGui::BeginMenu("编辑"))
-                {
-                    ImGui::MenuItem("撤销", "Ctrl+Z");
-                    ImGui::EndMenu();
-                }
+        //        if (ImGui::BeginMenu("编辑"))
+        //        {
+        //            ImGui::MenuItem("撤销", "Ctrl+Z");
+        //            ImGui::EndMenu();
+        //        }
 
-                // 右侧 X
-                float right = ImGui::GetWindowWidth();
-                float btnWidth = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2;
+        //        // 右侧 X
+        //        float right = ImGui::GetWindowWidth();
+        //        float btnWidth = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2;
 
-                ImGui::SameLine(right - btnWidth - 10);
+        //        ImGui::SameLine(right - btnWidth - 10);
 
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 0, 0, 0.2f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 0, 0, 0.4f));
+        //        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        //        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 0, 0, 0.2f));
+        //        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 0, 0, 0.4f));
 
-                if (ImGui::Button("X"))
-                    showWindow1 = false;
+        //        if (ImGui::Button("X"))
+        //            showWindow1 = false;
 
-                ImGui::PopStyleColor(3);
+        //        ImGui::PopStyleColor(3);
 
-                ImGui::EndMenuBar();
-            }
+        //        ImGui::EndMenuBar();
+        //    }
 
-            ImGui::Text("MainWindow1");
+        //    ImGui::Text("MainWindow1");
 
-            ImGui::End();
-             
-        }
+        //    ImGui::End();
+        //     
+        //}
 
         ImGui::Render();
         const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
@@ -523,167 +525,183 @@ void RenderFrameDrawImage()
 
     ImGui::End();
 }
+
+  
  
 // 布局
 void RenderLaylout()
 {
-    ImGui::Begin("MainWindow", nullptr, ImGuiWindowFlags_MenuBar);
-    ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
-    // ======== 菜单栏 ========
-    if (ImGui::BeginMenuBar())
-    {
-        if (ImGui::BeginMenu("文件"))
-        {
-            if (ImGui::MenuItem("新建", "Ctrl+N")) { /* ... */ }
-            if (ImGui::MenuItem("打开", "Ctrl+O")) { /* ... */ }
-            if (ImGui::MenuItem("保存", "Ctrl+S")) { /* ... */ }
-            if (ImGui::MenuItem("另存为", "Ctrl+Shift+S")) { /* ... */ }
-            ImGui::Separator();
-            if (ImGui::MenuItem("退出", "Alt+F4")) { /* ... */ }
-            ImGui::EndMenu();
-        }
+    static float  leftWidth      = 250.0f;
+    static float  rightWidth     = 250.0f;
+    const  float  topHeight      = 40.0f;
+    const  float  bottomHeight   = 32.0f;
+    const  float  splitterWidth  = 3.0f;
+    const  float  minPanelWidth  = 100.0f;
 
-        if (ImGui::BeginMenu("编辑"))
-        {
-            if (ImGui::MenuItem("撤销", "Ctrl+Z")) { /* ... */ }
-            if (ImGui::MenuItem("重做", "Ctrl+Y")) { /* ... */ }
-            ImGui::Separator();
-            if (ImGui::MenuItem("复制", "Ctrl+C")) { /* ... */ }
-            if (ImGui::MenuItem("粘贴", "Ctrl+V")) { /* ... */ }
-            ImGui::EndMenu();
-        }
+    static bool showLeft  = true;
+    static bool showRight = true;
 
-        if (ImGui::BeginMenu("视图"))
-        {
-            static bool showGrid = true;
-            static bool showAxis = true;
-            ImGui::MenuItem("显示网格", nullptr, &showGrid); // 带勾选状态
-            ImGui::MenuItem("显示坐标轴", nullptr, &showAxis);
-            ImGui::EndMenu();
-        }
+    ImGui::Begin("MainWindow", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-        if (ImGui::BeginMenu("帮助"))
-        {
-            if (ImGui::MenuItem("关于")) { /* ... */ }
-            ImGui::EndMenu();
-        }
+    //---------------------------------
+    // Top
+    //---------------------------------    
+    ImGui::BeginChild("Top", ImVec2(0, topHeight), false); // false = 无边框
+ 
+    if (ImGui::Button(showLeft ? "Hide Left" : "Show Left"))
+        showLeft = !showLeft;
 
-        ImGui::EndMenuBar();
-    }
-    ImGui::PopStyleColor();
+    ImGui::SameLine();
 
-    // 添加菜单栏可以吗？
-    static float leftWidth = 220.0f;
-    float totalWidth = ImGui::GetContentRegionAvail().x;
-    float splitterWidth = 4.0f;
-    float rightWidth = totalWidth - leftWidth - splitterWidth;
+    if (ImGui::Button(showRight ? "Hide Right" : "Show Right"))
+        showRight = !showRight;
 
+    ImGui::SameLine();
 
-    // ======== 左侧 区域1 ========
-    if (ImGui::BeginChild("##区域1", ImVec2(leftWidth, 0), true))
-    {
-        ImGui::Text("区域1");
-
-        static float leftPanelWidth = 120.0f;
-        float availW = ImGui::GetContentRegionAvail().x;
-        float innerSplit = 4.0f;
-        float rightPanelWidth = availW - leftPanelWidth - innerSplit;
-
-        // 区域1 左列
-        if (ImGui::BeginChild("##区域1_左", ImVec2(leftPanelWidth, 0), true))
-        {
-            ImGui::Text("区域1 - 左");
-
-            if (ImGui::BeginChild("##区域1_左_上", ImVec2(0, 40), true))
-            {
-                ImGui::Text("区域1 - 左 - 上");
-            }
-            ImGui::EndChild();
-        }
-        ImGui::EndChild();
-
-        ImGui::SameLine(0, 0);
-
-        // 区域1 内部分隔条
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.3f, 0.3f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.4f, 0.6f, 1.0f, 0.8f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.4f, 0.6f, 1.0f, 1.0f));
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
-        ImGui::Button("##splitter_inner", ImVec2(innerSplit, -1));
-        ImGui::PopStyleVar();
-        ImGui::PopStyleColor(3);
-
-        if (ImGui::IsItemActive())
-        {
-            leftPanelWidth += ImGui::GetIO().MouseDelta.x;
-            leftPanelWidth = ImClamp(leftPanelWidth, 40.0f, availW - 40.0f);
-        }
-        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-
-        ImGui::SameLine(0, 0);
-
-        // 区域1 右列
-        if (ImGui::BeginChild("##区域1_右", ImVec2(rightPanelWidth, 0), true))
-        {
-            ImGui::Text("区域1 - 右");
-        }
-        ImGui::EndChild();
-    }
+    ImGui::Text("Toolbar / Menu");
+ 
     ImGui::EndChild();
 
-    ImGui::SameLine(0, 0);
+    //---------------------------------
+    // Middle 尺寸
+    //---------------------------------
+    float middleHeight = ImGui::GetContentRegionAvail().y - bottomHeight - ImGui::GetStyle().ItemSpacing.y; 
+    float totalWidth   = ImGui::GetContentRegionAvail().x;
 
-    // ======== 主分隔条 ========
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.3f, 0.3f, 0.5f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.4f, 0.6f, 1.0f, 0.8f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.4f, 0.6f, 1.0f, 1.0f));
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
-    ImGui::Button("##splitter_main", ImVec2(splitterWidth, -1));
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor(3);
+    //---------------------------------
+    // 先处理拖动
+    //---------------------------------
 
-    if (ImGui::IsItemActive())
+    static bool dragLeft  = false;
+    static bool dragRight = false;
+
+    if (dragLeft)
     {
-        leftWidth += ImGui::GetIO().MouseDelta.x;
-        leftWidth = ImClamp(leftWidth, 80.0f, totalWidth - 80.0f);
+        leftWidth += ImGui::GetIO().MouseDelta.x; 
+        leftWidth = ImClamp(leftWidth, minPanelWidth, totalWidth - rightWidth - minPanelWidth);
+
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            dragLeft = false;
     }
-    if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 
-    ImGui::SameLine(0, 0);
-
-    // ======== 右侧 区域2 + TabBar ========
-    if (ImGui::BeginChild("##区域2", ImVec2(rightWidth, 0), true))
+    if (dragRight)
     {
-        if (ImGui::BeginTabBar("##tabs"))
-        {
-            if (ImGui::BeginTabItem("属性"))
-            {
-                ImGui::Text("属性面板内容");
-                ImGui::EndTabItem();
-            }
+        rightWidth -= ImGui::GetIO().MouseDelta.x;
 
-            if (ImGui::BeginTabItem("图层"))
-            {
-                ImGui::Text("图层面板内容");
-                ImGui::EndTabItem();
-            }
+        rightWidth = ImClamp(rightWidth, minPanelWidth, totalWidth - leftWidth - minPanelWidth);
 
-            if (ImGui::BeginTabItem("设置"))
-            {
-                ImGui::Text("设置面板内容");
-                ImGui::EndTabItem();
-            }
-
-            ImGui::EndTabBar();
-        }
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            dragRight = false;
     }
+
+    //---------------------------------
+    // 统一计算布局
+    //---------------------------------
+
+    float actualLeftWidth  = showLeft ? leftWidth : 0.0f;
+    float actualRightWidth = showRight ? rightWidth : 0.0f;
+
+    float centerWidth = totalWidth - actualLeftWidth - actualRightWidth - (showLeft ? splitterWidth : 0.0f) - (showRight ? splitterWidth : 0.0f);
+     
+
+
+    centerWidth = ImMax(centerWidth, minPanelWidth);
+
+    //---------------------------------
+    // Middle
+    //--------------------------------- 
+    ImGui::BeginChild("Middle", ImVec2(0, middleHeight), false, ImGuiWindowFlags_NoScrollbar);
+
+	// 整体边框圆角
+    ImVec2 pmin = ImGui::GetWindowPos();
+    ImVec2 pmax = { pmin.x + ImGui::GetWindowSize().x, pmin.y + ImGui::GetWindowSize().y };
+
+    ImGui::GetWindowDrawList()->AddRect(pmin, pmax, ImGui::GetColorU32(ImGuiCol_Border), 6.0f);
+
+    //---------------------------------
+    // Left
+    //---------------------------------
+    if (showLeft)
+    { 
+
+        ImGui::BeginChild("Left", ImVec2(leftWidth, 0), ImGuiChildFlags_AlwaysUseWindowPadding);
+
+        ImGui::Text("Left");
+
+        ImGui::EndChild();
+
+
+        ImGui::SameLine(0, 0);
+
+        //---------------------------------
+        // Left Splitter
+        //---------------------------------
+
+        ImGui::InvisibleButton("##splitter_left", ImVec2(splitterWidth, middleHeight));
+
+        if (ImGui::IsItemHovered())
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+
+        if (ImGui::IsItemActivated())
+            dragLeft = true;
+
+        ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), dragLeft ? IM_COL32(100, 180, 255, 255) : IM_COL32(80, 80, 80, 255));
+
+        ImGui::SameLine(0, 0);
+    }
+
+    //---------------------------------
+    // Center
+    //---------------------------------
+
+    ImGui::BeginChild("Center", ImVec2(centerWidth, 0), ImGuiChildFlags_AlwaysUseWindowPadding);
+
+    ImGui::Text("Center");
+
+    ImGui::EndChild();
+
+    if (showRight)
+    {
+
+        ImGui::SameLine(0, 0);
+
+        //---------------------------------
+        // Right Splitter
+        //---------------------------------
+
+        ImGui::InvisibleButton("##splitter_right", ImVec2(splitterWidth, middleHeight));
+
+        if (ImGui::IsItemHovered())
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+
+        if (ImGui::IsItemActivated())
+            dragRight = true;
+
+        ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), dragRight ? IM_COL32(100, 180, 255, 255) : IM_COL32(80, 80, 80, 255));
+
+        ImGui::SameLine(0, 0);
+
+        //---------------------------------
+        // Right
+        //---------------------------------
+        ImGui::BeginChild("Right", ImVec2(rightWidth, 0), ImGuiChildFlags_AlwaysUseWindowPadding);    
+        ImGui::Text("Properties");
+        ImGui::EndChild();
+
+    }
+
+    ImGui::EndChild(); // Middle
+    //---------------------------------
+    // Bottom
+    //---------------------------------
+
+	ImGui::BeginChild("Bottom", ImVec2(0, bottomHeight), false); // false = 无边框
+    ImGui::Text("Ready | FPS %.1f", ImGui::GetIO().Framerate);
     ImGui::EndChild();
 
     ImGui::End();
-
 }
+ 
 
 void BeginDockSpace()
 {
